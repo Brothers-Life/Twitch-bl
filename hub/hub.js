@@ -38,6 +38,8 @@ const DEFAULT_CONFIG = {
   soundboard: { pads: [], chat: false, cost: 100, volume: 0.8 },
   // clé des raccourcis Stream Deck (générée au premier démarrage)
   actionsKey: "",
+  // si le dock BL Studio est fermé dans OBS, BL Studio se rouvre dans une fenêtre (les gens perdent le dock)
+  ui: { reopen: true },
   tiktok: { username: "" },
   youtube: { channel: "" },
   streamelements: { jwt: "" },
@@ -522,9 +524,31 @@ wss.on("connection", ws => {
   ws.on("message", raw => {
     try { const m = JSON.parse(raw); if (m.kind === "studio") ws.studio = { obs: m.obs ? 1 : 0, at: Date.now() }; } catch {}
   });
-  ws.on("close", () => hub.clients.delete(ws));
+  ws.on("close", () => { hub.clients.delete(ws); if (ws.studio) checkDock(8000); });
   ws.on("error", () => {});
 });
+
+// ---------- BL Studio toujours sous la main ----------
+// OBS détruit la page d'un dock fermé : si plus aucune fenêtre BL Studio n'est connectée alors qu'OBS tourne, on en rouvre une
+let dockTimer = null;
+const obsRunning = cb => execFile("tasklist", ["/FI", "IMAGENAME eq obs64.exe", "/NH"], { windowsHide: true }, (err, out) => cb(!err && /obs64\.exe/i.test(out)));
+function checkDock(delay) {
+  clearTimeout(dockTimer);
+  dockTimer = setTimeout(() => {
+    if (!hub.config.data.ui?.reopen) return;
+    if ([...hub.clients].some(c => c.readyState === 1 && c.studio)) return;
+    // OBS en train de se fermer : on revérifie un peu plus tard avant d'ouvrir quoi que ce soit
+    obsRunning(a => a && setTimeout(() => obsRunning(b => b && ![...hub.clients].some(c => c.readyState === 1 && c.studio) && openStudioWindow()), 3000));
+  }, delay);
+}
+function openStudioWindow() {
+  const url = `http://localhost:${PORT}/`;
+  const edge = [process.env["ProgramFiles(x86)"], process.env.ProgramFiles].filter(Boolean)
+    .map(d => path.join(d, "Microsoft", "Edge", "Application", "msedge.exe")).find(f => fs.existsSync(f));
+  console.log("Dock BL Studio fermé : ouverture dans une fenêtre");
+  if (edge) spawn(edge, [`--app=${url}`, "--window-size=1280,820"], { detached: true, stdio: "ignore" }).unref();
+  else spawn("cmd", ["/c", "start", "", url], { detached: true, stdio: "ignore", windowsHide: true }).unref();
+}
 if (!hub.config.data.actionsKey) { hub.config.data.actionsKey = crypto.randomBytes(12).toString("hex"); hub.config.flush(); }
 
 // après une mise à jour, le nouveau Hub attend que l'ancien libère le port
@@ -549,6 +573,7 @@ server.listen(PORT, "127.0.0.1", () => {
   hub.startAll();
   hub.updater.start();
   hub.media.start();
+  checkDock(25000);   // au démarrage d'OBS : le dock a 25 s pour se connecter
   // classement des points pour le widget « leaderboard »
   setInterval(() => hub.broadcast({ kind: "leaderboard", leaderboard: hub.bot.leaderboard(10) }), 30000);
 });

@@ -411,7 +411,9 @@
         <label class="row" id="tplVertRow"><input type="checkbox" id="tplVert" checked> Créer aussi la version verticale (TikTok) : « V · nom »</label>
         <div class="row"><span></span><button class="btn primary" id="tplCreate">Créer la scène</button></div>
         <p class="hint" style="margin:0">La scène réutilise tes sources existantes (fond animé, webcam, capture du jeu, widgets) : elles restent synchronisées partout.
-          La version verticale apparaît dans le dock « Vertical » d'Aitum au prochain redémarrage d'OBS.</p>
+          La version verticale est ajoutée au dock « Vertical » d'Aitum dans la foulée (après le live s'il y en a un en cours).</p>
+        <div class="row" style="margin-bottom:0"><button class="btn small" id="vReload">Actualiser le dock Vertical</button>
+          <span class="hint">si une scène « V · … » n'y apparaît pas</span></div>
       </div>
       <h3>Canevas vertical (TikTok)</h3>
       <div class="card">
@@ -490,6 +492,7 @@
           <option value="hub:alertes">⚡ Alertes (BL Hub)</option><option value="hub:chat">⚡ Chat unifié (BL Hub)</option>
           <option value="hub:minijeux">⚡ Mini-jeux (BL Hub)</option><option value="hub:soutiens">⚡ Derniers soutiens (BL Hub)</option>
         </select></div>
+        <label class="row"><input type="checkbox" id="addWidgetV" checked> Ajouter aussi dans la version verticale de la scène (« V · … »)</label>
         <div class="row"><span></span><button class="btn primary" id="addWidget">+ Ajouter</button></div>
       </div>
       <h3>Réglages des widgets</h3>
@@ -860,6 +863,7 @@ Non</textarea>
       <pre class="hint" id="updNotes" style="white-space:pre-wrap;margin:0 0 6px;font:inherit"></pre>
       <div class="row"><button class="btn" id="updCheck">Vérifier maintenant</button><button class="btn primary" id="updInstall" hidden>Installer la mise à jour</button></div>
       <label class="row" style="margin:0"><input type="checkbox" id="updAuto"> Installer automatiquement les mises à jour (jamais pendant un live)</label>
+      <label class="row" style="margin:0"><input type="checkbox" id="uiReopen"> Rouvrir BL Studio dans une fenêtre si le dock est fermé dans OBS</label>
       <p class="hint">Tes réglages, jetons, points et ton logo sont conservés à chaque mise à jour.</p>
     </div>
   </section>
@@ -1086,6 +1090,7 @@ function renderUpdate(u) {
   $("updCur").textContent = u.current || "?";
   $("updLatest").textContent = u.latest || "…";
   $("updAuto").checked = S?.config?.updates?.auto !== false;
+  $("uiReopen").checked = S?.config?.ui?.reopen !== false;
   $("updState").textContent = u.installing ? (u.restarting ? "Mise à jour installée : redémarrage…" : "Téléchargement et installation…")
     : u.available ? `La version ${u.latest} est disponible.` : u.error || (u.checkedAt ? "BL Studio est à jour." : "Vérification au démarrage…");
   $("updInstall").hidden = !u.available || u.installing;
@@ -1093,6 +1098,7 @@ function renderUpdate(u) {
   $("updBtn").hidden = !u.available;
   if (u.restarting && !reloadPlanned) { reloadPlanned = true; toast("Mise à jour installée"); setTimeout(() => location.reload(), 7000); }
 }
+$("uiReopen").onchange = e => saveSection("ui", { reopen: e.target.checked }, e.target.checked ? "BL Studio se rouvrira si le dock est fermé" : "Réouverture automatique désactivée");
 $("updCheck").onclick = async () => { $("updState").textContent = "Vérification…"; renderUpdate(await post("/api/update/check")); };
 $("updInstall").onclick = async () => { await post("/api/update/install"); toast("Installation de la mise à jour…"); };
 $("updAuto").onchange = e => saveSection("updates", { auto: e.target.checked }, e.target.checked ? "Mises à jour automatiques activées" : "Mises à jour automatiques désactivées");
@@ -1175,7 +1181,7 @@ function connect() {
   ws.onmessage = e => {
     const { op, d } = JSON.parse(e.data);
     if (op === 0) {
-      const ident = { rpcVersion: 1, eventSubscriptions: 1 | 4 | 8 | 16 | 64 | 128 | 65536 };
+      const ident = { rpcVersion: 1, eventSubscriptions: 1 | 2 | 4 | 8 | 16 | 64 | 128 | 65536 };
       if (d.authentication) ident.authentication = b64sha(b64sha(pwd + d.authentication.salt) + d.authentication.challenge);
       ws.send(JSON.stringify({ op: 1, d: ident }));
     } else if (op === 2) {
@@ -1235,6 +1241,7 @@ async function syncVertical(scene) {
 function onEvent(type, data) {
   if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); applySceneMix(current); updateTopbar(); }
   if (type === "InputVolumeMeters") onMeters(data.inputs);
+  if (type === "CurrentSceneCollectionChanged" && !reloadingCollection) setTimeout(refreshAll, 800);
   if (type === "InputMuteStateChanged" && document.querySelector("#tab-audio.on")) { clearTimeout(window._auT); window._auT = setTimeout(renderAudio, 300); }
   if (type === "InputVolumeChanged") {
     // mise à jour sur place (sans tout redessiner : le curseur reste utilisable pendant qu'on le bouge)
@@ -1302,7 +1309,16 @@ async function renderItems() {
   $("sceneItems").querySelectorAll(".eye").forEach(b => {
     b.onclick = async () => {
       const r = rows[b.dataset.i];
-      await call("SetSceneItemEnabled", { sceneName: r.scene, sceneItemId: r.it.sceneItemId, sceneItemEnabled: !r.it.sceneItemEnabled });
+      const on = !r.it.sceneItemEnabled;
+      await call("SetSceneItemEnabled", { sceneName: r.scene, sceneItemId: r.it.sceneItemId, sceneItemEnabled: on });
+      // même élément dans « V · scène » : affiché / masqué pareil
+      const twin = linkV ? await twinOf(selected) : null;
+      if (twin) {
+        try {
+          const { sceneItemId } = await call("GetSceneItemId", { sceneUuid: twin.sceneUuid, sourceName: r.it.sourceName });
+          await call("SetSceneItemEnabled", { sceneUuid: twin.sceneUuid, sceneItemId, sceneItemEnabled: on });
+        } catch {}
+      }
       renderItems();
     };
   });
@@ -1654,7 +1670,19 @@ $("addWidget").onclick = async () => {
   while (inputs.some(i => i.inputName === name)) name = `Widget ${label} ${n++}`;
   await call("CreateInput", { sceneName: current, inputName: name, inputKind: "browser_source",
     inputSettings: { url: u.toString(), width, height }, sceneItemEnabled: true });
-  toast(`« ${name} » ajouté à ${current}`);
+  let alsoV = "";
+  const twin = $("addWidgetV").checked ? await twinOf(current) : null;
+  if (twin) {
+    try {
+      // centré en largeur, réduit pour tenir dans le 1080 × 1920
+      const w = Math.min(width, 1000), h = Math.round(height * w / width);
+      const { sceneItemId } = await call("CreateSceneItem", { sceneUuid: twin.sceneUuid, sourceName: name, sceneItemEnabled: true });
+      await call("SetSceneItemTransform", { sceneUuid: twin.sceneUuid, sceneItemId, sceneItemTransform: {
+        positionX: 540, positionY: width >= 1900 && height >= 1000 ? 960 : 1500, alignment: 0, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: w, boundsHeight: h, boundsAlignment: 0 } });
+      alsoV = ` et à ${twin.sceneName}`;
+    } catch {}
+  }
+  toast(`« ${name} » ajouté à ${current}${alsoV}`);
 };
 
 // ---------- Onglet Textes ----------
@@ -1667,7 +1695,17 @@ async function renderTexts() {
   }
   $("textList").innerHTML = `<div class="card">${rows.join("") || `<p class="hint">Aucun texte.</p>`}</div>`;
   $("textList").querySelectorAll("input").forEach(f => {
-    f.onchange = async () => { await call("SetInputSettings", { inputName: f.dataset.n, inputSettings: { text: f.value } }); toast("Texte mis à jour"); };
+    f.onchange = async () => {
+      const n = f.dataset.n, mate = n.startsWith("V · ") ? n.slice(4) : `V · ${n}`;
+      await call("SetInputSettings", { inputName: n, inputSettings: { text: f.value } });
+      if (inputs.some(i => i.inputName === mate && i.inputKind.startsWith("text_gdiplus"))) {
+        await call("SetInputSettings", { inputName: mate, inputSettings: { text: f.value } });
+        const other = $("textList").querySelector(`input[data-n="${CSS.escape(mate)}"]`);
+        if (other) other.value = f.value;
+        return toast("Texte mis à jour (16:9 et vertical)");
+      }
+      toast("Texte mis à jour");
+    };
   });
 }
 
@@ -2012,6 +2050,7 @@ const tplSvg = t => `<svg viewBox="0 0 192 108">${t.items.map(([k, x, y, w = 600
   const big = W >= 150;
   return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="${big ? 0 : 2}" fill="${big ? "#262a33" : "var(--acc)"}" opacity="${big ? 1 : .85}"/>`;
 }).join("")}</svg>`;
+$("vReload").onclick = () => reloadVerticalDock(true);
 async function renderTemplates() {
   verticalCanvas().then(cv => { $("tplVertRow").hidden = !cv; });
   $("tplList").innerHTML = Object.entries(SCENE_TEMPLATES).map(([k, t]) =>
@@ -2063,7 +2102,8 @@ $("tplCreate").onclick = async () => {
   if (cv) vertMsg = await createVerticalTwin(name, cv, sourceNames);
   $("tplName").value = "";
   await refreshAll();
-  toast(`Scène « ${name} » créée${vertMsg}${missing.length ? ` (introuvable : ${missing.join(", ")})` : ""}`);
+  toast(`Scène « ${name} » créée${missing.length ? ` (introuvable : ${missing.join(", ")})` : ""}`);
+  if (cv && vertMsg) setTimeout(() => reloadVerticalDock(true), 600);
 };
 
 // version verticale « V · nom » dans le canevas d'Aitum (les éléments s'ajoutent par l'identifiant de la scène)
@@ -2101,7 +2141,56 @@ async function createVerticalTwin(name, cv, sourceNames) {
   const vglob = existing.find(sc => /overlays/i.test(sc.sceneName));
   if (vglob) { try { const { sceneItemId } = await call("CreateSceneItem", { sceneUuid, sourceUuid: vglob.sceneUuid, sceneItemEnabled: true });
     await call("SetSceneItemLocked", { sceneUuid, sceneItemId, sceneItemLocked: true }); } catch {} }
-  return ` avec sa version verticale « ${vname} » (visible dans le dock Vertical après redémarrage d'OBS)`;
+  return ` avec sa version verticale « ${vname} »`;
+}
+
+// Aitum Vertical ne relit sa liste de scènes qu'au changement de collection : aller-retour rapide vers une collection
+// d'actualisation (jamais pendant un live, un enregistrement ou la caméra virtuelle verticale)
+let verticalReloadPending = false;
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function obsBusy() {
+  try {
+    const [st, rec, v] = await Promise.all([call("GetStreamStatus"), call("GetRecordStatus"),
+      call("CallVendorRequest", { vendorName: "aitum-vertical-canvas", requestType: "status", requestData: {} }).then(r => r.responseData || {}).catch(() => ({}))]);
+    return st.outputActive || rec.outputActive || v.streaming || v.recording || v.virtual_camera;
+  } catch { return true; }
+}
+async function reloadVerticalDock(force) {
+  if (await obsBusy()) {
+    verticalReloadPending = true;
+    if (force) toast("Live, enregistrement ou caméra virtuelle en cours : le dock Vertical sera actualisé dès que tu auras fini");
+    return false;
+  }
+  verticalReloadPending = false;
+  const TMP = "BL Studio (actualisation)";
+  const { currentSceneCollectionName: cur, sceneCollections } = await call("GetSceneCollectionList");
+  const liveScene = current;
+  reloadingCollection = true;
+  try {
+    if (sceneCollections.includes(TMP)) await call("SetCurrentSceneCollection", { sceneCollectionName: TMP });
+    else await call("CreateSceneCollection", { sceneCollectionName: TMP });
+    await sleep(1200);
+    await call("SetCurrentSceneCollection", { sceneCollectionName: cur });
+    for (let i = 0; i < 20 && (await call("GetSceneCollectionList")).currentSceneCollectionName !== cur; i++) await sleep(300);
+    await sleep(800);
+    // on revient sur la scène qui était en direct avant l'actualisation
+    if (liveScene) await call("SetCurrentProgramScene", { sceneName: liveScene }).catch(() => {});
+  } finally {
+    // quoi qu'il arrive, on ne laisse jamais la personne sur la collection d'actualisation
+    try { if ((await call("GetSceneCollectionList")).currentSceneCollectionName !== cur) await call("SetCurrentSceneCollection", { sceneCollectionName: cur }); } catch {}
+    reloadingCollection = false;
+  }
+  await refreshAll();
+  toast("Dock Vertical actualisé : la nouvelle scène verticale est disponible");
+  return true;
+}
+let reloadingCollection = false;
+setInterval(async () => { if (verticalReloadPending && ws && ws.readyState === 1 && !(await obsBusy())) reloadVerticalDock(); }, 15000);
+
+// version verticale d'une scène 16:9 (« V · nom »), si elle existe
+async function twinOf(name) {
+  const cv = await verticalCanvas();
+  return cv ? (await verticalScenes(cv)).find(sc => sc.sceneName === `V · ${name}`) || null : null;
 }
 
 // suppression d'une scène, de sa version verticale et des textes / comptes à rebours créés pour elle
@@ -2340,6 +2429,13 @@ $("auAdd").onclick = async () => {
   const settings = kind === "wasapi_process_output_capture" ? { priority: 2 } : { device_id: "default" };
   try {
     await call("CreateInput", { sceneName, inputName: name, inputKind: kind, inputSettings: settings, sceneItemEnabled: true });
+    // le son doit aussi exister quand seul le vertical (TikTok) est en direct
+    const cv = await verticalCanvas();
+    if (cv) {
+      const vs = await verticalScenes(cv);
+      const target = scope === "@all" ? vs.find(sc => /overlays/i.test(sc.sceneName)) : vs.find(sc => sc.sceneName === `V · ${scope}`);
+      if (target) await call("CreateSceneItem", { sceneUuid: target.sceneUuid, sourceName: name, sceneItemEnabled: true }).catch(() => {});
+    }
     $("auName").value = "";
     await refreshAll();
     toast(`« ${name} » ajoutée${scope === "@all" ? " à toutes les scènes" : ` à ${scope}`}`);

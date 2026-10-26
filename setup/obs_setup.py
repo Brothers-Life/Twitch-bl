@@ -287,13 +287,26 @@ def ini_set(text, section, key, value):
     return text[:m.end()] + body + text[body_end:]
 if not ui:
     ui = "[General]\nPre19Defaults=false\nPre21Defaults=false\nPre23Defaults=false\nPre24.1Defaults=false\n"
+def ini_get(text, section, key):
+    m = re.search(rf"^\[{re.escape(section)}\]\s*$(.*?)(?=^\[|\Z)", text, re.M | re.S)
+    k = m and re.search(rf"^{re.escape(key)}=(.*)$", m.group(1), re.M)
+    return k.group(1).strip() if k else ""
 ui = ini_set(ui, "General", "FirstRun", "true")
-ui = ini_set(ui, "General", "ConfirmOnExit", "true")
-ui = ini_set(ui, "Basic", "Profile", PROFILE)
-ui = ini_set(ui, "Basic", "ProfileDir", "BL_Studio")
-ui = ini_set(ui, "Basic", "SceneCollection", NAME)
-ui = ini_set(ui, "Basic", "SceneCollectionFile", FILE)
-docks = [{"title": "BL Studio", "url": "http://localhost:3939/", "uuid": "b1b1b1b1-0000-4000-8000-000000000b1d"}]
+# collection et profil : seulement s'il n'y en a pas encore (on ne change pas ce que la personne utilise déjà ;
+# le raccourci « BL Studio » ouvre de toute façon OBS sur la collection et le profil BL Studio)
+if not ini_get(ui, "Basic", "SceneCollection") or FORCE:
+    ui = ini_set(ui, "Basic", "SceneCollection", NAME)
+    ui = ini_set(ui, "Basic", "SceneCollectionFile", FILE)
+if not ini_get(ui, "Basic", "Profile") or FORCE:
+    ui = ini_set(ui, "Basic", "Profile", PROFILE)
+    ui = ini_set(ui, "Basic", "ProfileDir", "BL_Studio")
+# docks navigateur : on ajoute (ou met à jour) celui de BL Studio sans toucher aux autres docks de la personne
+BL_DOCK = {"title": "BL Studio", "url": "http://localhost:3939/", "uuid": "b1b1b1b1-0000-4000-8000-000000000b1d"}
+try:
+    docks = json.loads(ini_get(ui, "BasicWindow", "ExtraBrowserDocks") or "[]")
+except ValueError:
+    docks = []
+docks = [d for d in docks if d.get("uuid") != BL_DOCK["uuid"] and d.get("title") != BL_DOCK["title"]] + [BL_DOCK]
 ui = ini_set(ui, "BasicWindow", "ExtraBrowserDocks", json.dumps(docks, ensure_ascii=False))
 if os.path.exists(ui_path) and not os.path.exists(ui_path + ".avant-bl-studio.bak"):
     shutil.copy(ui_path, ui_path + ".avant-bl-studio.bak")

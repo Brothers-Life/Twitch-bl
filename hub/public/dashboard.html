@@ -269,6 +269,7 @@ Non</textarea>
       <pre class="hint" id="updNotes" style="white-space:pre-wrap;margin:0 0 6px;font:inherit"></pre>
       <div class="row"><button class="btn" id="updCheck">Vérifier maintenant</button><button class="btn primary" id="updInstall" hidden>Installer la mise à jour</button></div>
       <label class="row" style="margin:0"><input type="checkbox" id="updAuto"> Installer automatiquement les mises à jour (jamais pendant un live)</label>
+      <label class="row" style="margin:0"><input type="checkbox" id="uiReopen"> Rouvrir BL Studio dans une fenêtre si le dock est fermé dans OBS</label>
       <p class="hint">Tes réglages, jetons, points et ton logo sont conservés à chaque mise à jour.</p>
     </div>
   </section>
@@ -496,6 +497,7 @@ function renderUpdate(u) {
   $("updCur").textContent = u.current || "?";
   $("updLatest").textContent = u.latest || "…";
   $("updAuto").checked = S?.config?.updates?.auto !== false;
+  $("uiReopen").checked = S?.config?.ui?.reopen !== false;
   $("updState").textContent = u.installing ? (u.restarting ? "Mise à jour installée : redémarrage…" : "Téléchargement et installation…")
     : u.available ? `La version ${u.latest} est disponible.` : u.error || (u.checkedAt ? "BL Studio est à jour." : "Vérification au démarrage…");
   $("updInstall").hidden = !u.available || u.installing;
@@ -503,6 +505,7 @@ function renderUpdate(u) {
   $("updBtn").hidden = !u.available;
   if (u.restarting && !reloadPlanned) { reloadPlanned = true; toast("Mise à jour installée"); setTimeout(() => location.reload(), 7000); }
 }
+$("uiReopen").onchange = e => saveSection("ui", { reopen: e.target.checked }, e.target.checked ? "BL Studio se rouvrira si le dock est fermé" : "Réouverture automatique désactivée");
 $("updCheck").onclick = async () => { $("updState").textContent = "Vérification…"; renderUpdate(await post("/api/update/check")); };
 $("updInstall").onclick = async () => { await post("/api/update/install"); toast("Installation de la mise à jour…"); };
 $("updAuto").onchange = e => saveSection("updates", { auto: e.target.checked }, e.target.checked ? "Mises à jour automatiques activées" : "Mises à jour automatiques désactivées");
