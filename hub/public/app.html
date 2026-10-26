@@ -268,6 +268,8 @@
       <h3>Packs prêts à l'emploi</h3>
       <p class="hint" style="margin-top:0">Un clic applique tout d'un coup : couleurs, police, style des widgets, fond animé et transition.</p>
       <div class="packs" id="packs"></div>
+      <div class="row" style="margin-top:10px"><span class="hint">Ou laisse BL Studio créer une DA pour toi :</span>
+        <button class="btn small" id="daLogo">Depuis mon logo</button><button class="btn small" id="daRandom">DA surprise</button></div>
       <h3>Thème (DA)</h3>
       <div class="grid" id="themes"></div>
       <details class="card" style="margin-top:8px" id="customBox"><summary>🎨 Créer / modifier ma DA perso</summary>
@@ -291,8 +293,7 @@
         <div class="row"><label>Police des titres</label><select id="font"></select></div>
         <div class="row"><label>Arrondi des coins</label><input type="range" id="arrondi" min="0" max="2.5" step="0.1"><span id="arrondiV"></span></div>
         <div class="row"><label>Lueur</label><input type="range" id="lueur" min="0" max="2" step="0.1"><span id="lueurV"></span></div>
-        <div class="row"><label>Animation des alertes</label><select id="aanim">
-          <option value="glisse">Glisse</option><option value="pop">Pop</option><option value="gta">Mission GTA</option><option value="bandeau">Bandeau</option></select></div>
+        <div class="row"><label>Animation des alertes</label><select id="aanim"></select></div>
       </div>
       <h3>Animation des fonds</h3>
       <div class="card">
@@ -379,6 +380,22 @@
       <p class="hint" style="margin-top:0">Twitch part du format 16:9, TikTok du format vertical (scènes « V · … »), YouTube et les autres sorties passent par Aitum Multistream.</p>
       <div class="row"><button class="btn primary" id="goLive">Lancer le live partout</button><button class="btn danger" id="stopLive">Tout arrêter</button><span id="liveSum" class="hint"></span></div>
       <div class="dests" id="dests"></div>
+      <h3>Pilote automatique</h3>
+      <div class="card">
+        <label class="row" style="margin:0"><input type="checkbox" id="apOn"> <b>Activé :</b>&nbsp;les boutons « Lancer le live partout » et « Tout arrêter » enchaînent les étapes ci-dessous</label>
+        <div class="row"><label>Scène de départ</label><select id="apStart"></select></div>
+        <div class="row"><label>Compte à rebours (min)</label><input type="number" id="apMin" min="0" max="60"></div>
+        <div class="row"><label>Ensuite, passer sur</label><select id="apAfter"></select></div>
+        <div class="row"><label>Message de début</label><input type="text" id="apHello" placeholder="Laisse vide pour ne rien envoyer"></div>
+        <div class="row"><label>Scène de fin</label><select id="apEnd"></select></div>
+        <div class="row"><label>Couper les flux après (s)</label><input type="number" id="apEndSec" min="0" max="600"></div>
+        <div class="row"><label>Message de fin</label><input type="text" id="apBye" placeholder="Laisse vide pour ne rien envoyer"></div>
+        <label class="row" style="margin-top:10px"><input type="checkbox" id="apGame"> Suivre le jeu pendant le live (bascule toute seule quand il se ferme ou se relance)</label>
+        <div class="row"><label>Nom du jeu (processus)</label><input type="text" id="apProc" placeholder="FiveM, GTA5, VALORANT…"></div>
+        <div class="row"><label>Jeu fermé : scène</label><select id="apPause"></select></div>
+        <div class="row"><label>Jeu relancé : scène</label><select id="apGameScene"></select></div>
+        <p class="hint" id="apInfo" style="margin-bottom:0">Les messages partent dans le chat Twitch (connexion Twitch requise).</p>
+      </div>
       <h3>Clé TikTok</h3>
       <div class="card">
         <p class="hint" style="margin-top:0">TikTok LIVE Center ou appli TikTok : LIVE → diffuser sur PC. Copie l'URL du serveur et la clé de stream. TikTok change souvent la clé : recolle-la avant chaque live.</p>
@@ -910,7 +927,7 @@ async function refreshAll() {
   current = sl.currentProgramSceneName;
   if (!scenes.includes(selected)) selected = current;
   inputs = (await call("GetInputList")).inputs;
-  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests();
+  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto();
 }
 
 let linkV = store("bl_linkv") ?? true;
@@ -1027,6 +1044,58 @@ function renderBgPreview() {
   const src = `${HUB}/fond-anime.html?${u}`;
   if ($("bgPrev").dataset.src !== src) { $("bgPrev").dataset.src = src; $("bgPrev").src = src; }
 }
+// ---------- DA générées automatiquement ----------
+const hsl = (h, sat, l) => {
+  h = ((h % 360) + 360) % 360; sat /= 100; l /= 100;
+  const k = n => (n + h / 30) % 12, a = sat * Math.min(l, 1 - l);
+  const f = n => Math.round(255 * (l - a * Math.max(-1, Math.min(k(n) - 3, 9 - k(n), 1)))).toString(16).padStart(2, "0");
+  return `#${f(0)}${f(8)}${f(4)}`;
+};
+// palette complète à partir d'une teinte principale et d'une teinte d'accent
+const paletteFrom = (h1, h2, sat = 85) => ({ c1: hsl(h1, 95, 84), c2: hsl(h1, sat, 55), c3: hsl(h2, Math.min(90, sat), 44),
+  bg1: hsl(h1, 45, 8), bg2: hsl(h1, 50, 3), sub: hsl(h1, 35, 92) });
+function useGenerated(label, t) {
+  const id = label.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "perso";
+  customs[id] = { label, ...t };
+  store("bl_custom", customs);
+  da.theme = `custom:${id}`;
+  $("cName").value = label;
+  for (const k of COLOR_KEYS) $("c" + k).value = t[k];
+  renderDA(); renderStingers();
+  toast(`DA « ${label} » créée : clique sur « Appliquer à toutes les scènes »`);
+}
+$("daRandom").onclick = () => {
+  const h = Math.floor(Math.random() * 360), offset = [30, 150, 180, 210, 120][Math.floor(Math.random() * 5)];
+  useGenerated(`Surprise ${h}`, paletteFrom(h, h + offset, 70 + Math.floor(Math.random() * 25)));
+};
+$("daLogo").onclick = async () => {
+  try {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = `${HUB}/logo.png?t=${Date.now()}`;
+    await img.decode();
+    const c = document.createElement("canvas"); c.width = c.height = 64;
+    const g = c.getContext("2d"); g.drawImage(img, 0, 0, 64, 64);
+    const px = g.getImageData(0, 0, 64, 64).data, bins = new Array(24).fill(0), sums = new Array(24).fill(0);
+    for (let i = 0; i < px.length; i += 4) {
+      if (px[i + 3] < 200) continue;
+      const r = px[i] / 255, gr = px[i + 1] / 255, b = px[i + 2] / 255, mx = Math.max(r, gr, b), mn = Math.min(r, gr, b), l = (mx + mn) / 2, d = mx - mn;
+      if (d < 0.12 || l < 0.12 || l > 0.92) continue;                 // gris, noir, blanc : ignorés
+      const sat = d / (1 - Math.abs(2 * l - 1));
+      let h = mx === r ? ((gr - b) / d) % 6 : mx === gr ? (b - r) / d + 2 : (r - gr) / d + 4;
+      h = (h * 60 + 360) % 360;
+      const w = sat * (1 - Math.abs(l - 0.5));
+      bins[Math.floor(h / 15)] += w; sums[Math.floor(h / 15)] += w * h;
+    }
+    const order = bins.map((w, i) => [w, i]).filter(([w]) => w > 0).sort((a, b) => b[0] - a[0]);
+    if (!order.length) { toast("Ton logo n'a pas de couleur vive : voici une DA surprise"); return $("daRandom").onclick(); }
+    const hueOf = i => sums[i] / bins[i];
+    const h1 = hueOf(order[0][1]);
+    const second = order.find(([, i]) => { const dh = Math.abs(hueOf(i) - h1); return Math.min(dh, 360 - dh) > 40; });
+    useGenerated("Mon logo", paletteFrom(h1, second ? hueOf(second[1]) : h1 + 30));
+  } catch { toast("Logo illisible : ajoute-le dans l'onglet Identité"); }
+};
+
 // ---------- Stingers ----------
 const stingerName = style => {
   const t = allThemes()[da.theme] || BL_THEMES.sunset;
@@ -1058,6 +1127,7 @@ function renderDA() {
     for (const k of COLOR_KEYS) $("c" + k).value = t[k];
     renderDA();
   });
+  $("aanim").innerHTML = Object.entries(BL_ALERT_ANIMS).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join("");
   $("wstyle").value = da.style; $("aanim").value = da.aanim;
   $("font").innerHTML = Object.entries(BL_FONTS).map(([k, f]) => `<option value="${k}" ${k === da.font ? "selected" : ""}>${esc(f.label)}</option>`).join("");
   renderStyleCards();
@@ -1138,13 +1208,14 @@ $("applyDA").onclick = async () => {
   toast(`Thème « ${t.label} » appliqué`);
 };
 
-async function setStingerTheme(verbose) {
+async function setStingerTheme(verbose, force) {
   const { transitions } = await call("GetSceneTransitionList");
   const stinger = transitions.find(tr => tr.transitionKind === "obs_stinger_transition");
   if (!stinger) return;
   const t = allThemes()[da.theme] || BL_THEMES.sunset;
   const body = da.theme.startsWith("custom:") ? Object.fromEntries(["c1", "c2", "c3", "bg1", "bg2"].map(k => [k, t[k]])) : { theme: da.theme };
   body.style = da.stinger || "bandes";
+  if (force) body.force = true;
   let name;
   try {
     const slow = setTimeout(() => toast(`Création du stinger « ${BL_STINGERS[body.style][0]} »… (20 s environ)`), 400);
@@ -1279,7 +1350,8 @@ $("idLogoFile").onchange = e => {
     if (!r.ok) return toast(r.error || "Logo refusé");
     $("idLogo").src = HUB + "/logo.png?t=" + Date.now();
     await refreshSources(i => /logo|badge|alertes|fond|perso|camframe/i.test(i.url) || /Logo/i.test(i.name));
-    toast("Logo mis à jour partout");
+    toast("Logo mis à jour partout : la transition est recréée avec ton logo");
+    setStingerTheme(false, true).then(renderStingers).catch(() => {});
   };
   rd.readAsDataURL(f);
 };
@@ -1328,6 +1400,7 @@ $("idApply").onclick = async () => {
   brand = next;
   renderTexts(); renderWidgets();
   toast(`Identité « ${next.name} » appliquée partout`);
+  setStingerTheme(false, true).then(renderStingers).catch(() => {});
 };
 
 // ---------- Onglet Diffusion ----------
@@ -1378,16 +1451,85 @@ async function renderDests() {
   $("dests").querySelectorAll("[data-start]").forEach(b => b.onclick = async () => { try { await startDest(dests[b.dataset.start]); } catch (e) { toast(e.message); } setTimeout(renderDests, 1500); });
   $("dests").querySelectorAll("[data-stop]").forEach(b => b.onclick = async () => { try { await stopDest(dests[b.dataset.stop]); } catch (e) { toast(e.message); } setTimeout(renderDests, 1500); });
 }
+// pilote automatique : réglages enregistrés dans le navigateur du dock
+const AP_DEFAULT = { on: false, start: "Début", min: 5, after: "", hello: "Le live commence !", end: "Fin", endSec: 30,
+  bye: "Merci d'avoir regardé, à très vite !", game: false, proc: "FiveM", pause: "Pause", gameScene: "" };
+let ap = { ...AP_DEFAULT, ...(store("bl_auto") || {}) }, apTimer = null, apGameWas = null;
+const AP_SCENES = ["apStart", "apAfter", "apEnd", "apPause", "apGameScene"], AP_KEYS = { apStart: "start", apAfter: "after", apEnd: "end", apPause: "pause", apGameScene: "gameScene" };
+const gameSceneGuess = () => scenes.find(n => /jeu|fivem|game|gta/i.test(n)) || scenes[1] || scenes[0] || "";
+function renderAuto() {
+  if (!ap.after) ap.after = gameSceneGuess();
+  if (!ap.gameScene) ap.gameScene = gameSceneGuess();
+  for (const id of AP_SCENES) {
+    const k = AP_KEYS[id];
+    if (!scenes.includes(ap[k])) ap[k] = k === "start" ? scenes.find(n => /début|debut|start/i.test(n)) || scenes[0] : k === "end" ? scenes.find(n => /fin|end/i.test(n)) || scenes[0]
+      : k === "pause" ? scenes.find(n => /pause/i.test(n)) || scenes[0] : gameSceneGuess();
+    $(id).innerHTML = scenes.map(n => `<option ${n === ap[k] ? "selected" : ""}>${esc(n)}</option>`).join("");
+  }
+  $("apOn").checked = ap.on; $("apGame").checked = ap.game;
+  $("apMin").value = ap.min; $("apEndSec").value = ap.endSec; $("apHello").value = ap.hello; $("apBye").value = ap.bye; $("apProc").value = ap.proc;
+}
+const saveAuto = () => store("bl_auto", ap);
+for (const id of AP_SCENES) $(id).onchange = e => { ap[AP_KEYS[id]] = e.target.value; saveAuto(); };
+$("apOn").onchange = e => { ap.on = e.target.checked; saveAuto(); toast(ap.on ? "Pilote automatique activé" : "Pilote automatique désactivé"); };
+$("apGame").onchange = e => { ap.game = e.target.checked; apGameWas = null; saveAuto(); };
+for (const [id, k, num] of [["apMin", "min", 1], ["apEndSec", "endSec", 1], ["apHello", "hello"], ["apBye", "bye"], ["apProc", "proc"]])
+  $(id).onchange = e => { ap[k] = num ? Math.max(0, +e.target.value || 0) : e.target.value.trim(); saveAuto(); };
+
+const goScene = name => name && scenes.includes(name) ? call("SetCurrentProgramScene", { sceneName: name }).catch(() => {}) : null;
+const say = text => text ? hubPost("/api/say", { text }).catch(() => {}) : null;
+// durée de tous les comptes à rebours (le changement d'adresse relance le widget)
+async function setCountdowns(min) {
+  for (const i of inputs.filter(i => i.inputKind === "browser_source")) {
+    const { inputSettings: st } = await call("GetInputSettings", { inputName: i.inputName });
+    if (!(st.url || "").includes("w=countdown")) continue;
+    const u = new URL(st.url);
+    u.searchParams.set("min", min);
+    if (u.toString() === st.url) await call("PressInputPropertiesButton", { inputName: i.inputName, propertyName: "refreshnocache" }).catch(() => {});
+    else await call("SetInputSettings", { inputName: i.inputName, inputSettings: { url: u.toString() } });
+  }
+}
+async function startAll() { for (const d of dests) if (!d.live) { try { await startDest(d); } catch (e) { toast(`${d.label} : ${e.message}`); } } }
+async function stopAll() { for (const d of dests) if (d.live !== false) { try { await stopDest(d); } catch {} } }
+
 $("goLive").onclick = async () => {
-  if (!confirm("Lancer le live sur toutes les plateformes configurées ?")) return;
-  for (const d of dests) if (!d.live) { try { await startDest(d); } catch (e) { toast(`${d.label} : ${e.message}`); } }
+  if (!confirm(ap.on ? `Lancer le live partout ?\n\nPilote automatique : « ${ap.start} » avec ${ap.min} min de compte à rebours, puis « ${ap.after} ».`
+                     : "Lancer le live sur toutes les plateformes configurées ?")) return;
+  clearTimeout(apTimer);
+  if (ap.on) { await goScene(ap.start); if (ap.min > 0) await setCountdowns(ap.min); }
+  await startAll();
   toast("Lancement en cours…"); setTimeout(renderDests, 2500);
+  if (!ap.on) return;
+  setTimeout(() => say(ap.hello), 4000);
+  if (ap.min > 0 && ap.after) {
+    $("apInfo").textContent = `Passage sur « ${ap.after} » à ${new Date(Date.now() + ap.min * 60000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`;
+    apTimer = setTimeout(() => { if (current === ap.start) goScene(ap.after); $("apInfo").textContent = ""; }, ap.min * 60000);
+  }
 };
 $("stopLive").onclick = async () => {
-  if (!confirm("Arrêter le live partout ?")) return;
-  for (const d of dests) if (d.live !== false) { try { await stopDest(d); } catch {} }
-  toast("Live arrêté"); setTimeout(renderDests, 2500);
+  if (!confirm(ap.on ? `Terminer le live ?\n\nPilote automatique : « ${ap.end} », message de fin, puis arrêt des flux dans ${ap.endSec} s.` : "Arrêter le live partout ?")) return;
+  clearTimeout(apTimer);
+  if (!ap.on || !ap.endSec) { await stopAll(); toast("Live arrêté"); return setTimeout(renderDests, 2500); }
+  await goScene(ap.end);
+  say(ap.bye);
+  let left = ap.endSec;
+  const tick = setInterval(() => {
+    $("apInfo").textContent = `Arrêt des flux dans ${--left} s…`;
+    if (left > 0) return;
+    clearInterval(tick); $("apInfo").textContent = "";
+    stopAll().then(() => { toast("Live terminé"); setTimeout(renderDests, 2500); });
+  }, 1000);
 };
+// suivi du jeu : seulement pendant le live, et seulement depuis les scènes « jeu » / « jeu fermé »
+setInterval(async () => {
+  if (!ap.on || !ap.game || !ap.proc || !dests.some(d => d.live)) return;
+  try {
+    const r = await (await fetch(`${HUB}/api/process?name=${encodeURIComponent(ap.proc)}`)).json();
+    if (apGameWas === true && !r.running && current === ap.gameScene) { goScene(ap.pause); toast("Jeu fermé : scène « " + ap.pause + " »"); }
+    if (apGameWas === false && r.running && current === ap.pause) { goScene(ap.gameScene); toast("Jeu relancé : scène « " + ap.gameScene + " »"); }
+    apGameWas = !!r.running;
+  } catch {}
+}, 5000);
 try { $("ttServer").value = localStorage.getItem("bl_tt_server") || ""; } catch {}
 $("ttSave").onclick = async () => {
   const server = $("ttServer").value.trim(), key = $("ttKey").value.trim();

@@ -28,6 +28,14 @@ window.BL_THEMES = {
   desert:   { label: "Désert",          c1: "#ffe8c2", c2: "#e0a458", c3: "#a0522d", bg1: "#1c120a", bg2: "#080503", sub: "#f7ead6" },
   toxique:  { label: "Toxique",         c1: "#f4ff61", c2: "#a8ff00", c3: "#7a00ff", bg1: "#0c0a14", bg2: "#030205", sub: "#efffd6" },
   bubblegum:{ label: "Bubblegum",       c1: "#ffffff", c2: "#ff77e9", c3: "#7c5cff", bg1: "#1a0f24", bg2: "#08040c", sub: "#ffe9fb" },
+  tokyo:    { label: "Tokyo nuit",      c1: "#ffe4f2", c2: "#ff3d7f", c3: "#5b2bff", bg1: "#10081f", bg2: "#04020a", sub: "#f3e8ff" },
+  foret:    { label: "Forêt",           c1: "#e9f5d0", c2: "#7fb069", c3: "#2d6a4f", bg1: "#0b140e", bg2: "#030604", sub: "#e6f2e0" },
+  corail:   { label: "Corail",          c1: "#fff1e6", c2: "#ff7f6b", c3: "#e8505b", bg1: "#1c0d0d", bg2: "#080404", sub: "#ffe9e3" },
+  bordeaux: { label: "Bordeaux",        c1: "#f5e6d3", c2: "#a4243b", c3: "#5c1a2b", bg1: "#160a0d", bg2: "#060304", sub: "#f0e1e4" },
+  menthe:   { label: "Menthe",          c1: "#eafff7", c2: "#3ee6b0", c3: "#0f9d77", bg1: "#06140f", bg2: "#020705", sub: "#defff3" },
+  acier:    { label: "Acier",           c1: "#e8edf2", c2: "#8fa3b8", c3: "#3f5468", bg1: "#0e1216", bg2: "#040608", sub: "#dfe6ee" },
+  crepuscule:{ label: "Crépuscule",     c1: "#ffd8a8", c2: "#f76b8a", c3: "#6a4c93", bg1: "#150d1f", bg2: "#06030a", sub: "#ffe7d6" },
+  vapor:    { label: "Vaporwave",       c1: "#fdfd96", c2: "#ff71ce", c3: "#01cdfe", bg1: "#1b0c2e", bg2: "#08030f", sub: "#fbe6ff" },
 };
 
 // Polices des titres (Google Fonts chargées à la demande ; « impact » = police système)
@@ -44,6 +52,10 @@ window.BL_FONTS = {
   oswald:   { label: "Oswald",           title: '"Oswald", Impact, sans-serif',           g: "Oswald:wght@600;700" },
   creepster:{ label: "Creepster (horreur)", title: '"Creepster", cursive',               g: "Creepster" },
   cinzel:   { label: "Cinzel (royal)",   title: '"Cinzel", serif',                        g: "Cinzel:wght@700;900" },
+  teko:     { label: "Teko (sport)",     title: '"Teko", Impact, sans-serif',             g: "Teko:wght@600;700" },
+  blackops: { label: "Black Ops (militaire)", title: '"Black Ops One", Impact, sans-serif', g: "Black+Ops+One" },
+  righteous:{ label: "Righteous (rétro)", title: '"Righteous", sans-serif',               g: "Righteous" },
+  audiowide:{ label: "Audiowide (néon)", title: '"Audiowide", sans-serif',                g: "Audiowide" },
 };
 
 // Styles visuels des widgets (définis dans styles.css)
@@ -105,6 +117,18 @@ window.BL_PACKS = {
   toxique:    { label: "Toxique",        theme: "toxique",   font: "bangers",    style: "neon",    anim: "tunnel",    stinger: "pixels" },
   palace:     { label: "Palace",         theme: "gold",      font: "cinzel",     style: "carte",   anim: "braises",   stinger: "eclat" },
   sunset:     { label: "Golden hour",    theme: "sunset",    font: "impact",     style: "carte",   anim: "formes",    stinger: "bandes" },
+  tokyo:      { label: "Tokyo Drift",    theme: "tokyo",     font: "audiowide",  style: "neon",    anim: "etoiles",   stinger: "glitch" },
+  sauvage:    { label: "Sauvage",        theme: "foret",     font: "oswald",     style: "verre",   anim: "vagues",    stinger: "volets" },
+  prestige:   { label: "Prestige",       theme: "bordeaux",  font: "cinzel",     style: "carte",   anim: "bokeh",     stinger: "iris" },
+  tactique:   { label: "Tactique",       theme: "acier",     font: "blackops",   style: "gta",     anim: "hexa",      stinger: "volets" },
+  vapor:      { label: "Vapor 95",       theme: "vapor",     font: "righteous",  style: "retro",   anim: "synthwave", stinger: "pixels" },
+  crepuscule: { label: "Crépuscule",     theme: "crepuscule",font: "teko",       style: "pilule",  anim: "aurore",    stinger: "eclat" },
+};
+
+// Animations d'entrée des alertes (alertes.html?anim=…)
+window.BL_ALERT_ANIMS = {
+  glisse: "Glisse", pop: "Pop", gta: "Mission GTA", bandeau: "Bandeau",
+  zoom: "Zoom choc", glitch: "Glitch", chute: "Chute rebond", flip: "Retournement 3D",
 };
 
 // Applique le thème + la police demandés dans l'URL aux variables CSS et renvoie le thème.

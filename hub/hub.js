@@ -245,6 +245,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/twitch/callback") return sendFile(res, path.join(PUBLIC, "twitch-callback.html"));
     if (p === "/api/state") return json(res, hub.state());
+    // pilote automatique de BL Studio : le jeu (processus dont le nom contient « name ») est-il lancé ?
+    if (p === "/api/process") {
+      const name = String(url.searchParams.get("name") || "").toLowerCase();
+      if (!/^[\w .-]{2,40}$/.test(name)) return json(res, { error: "nom invalide" }, 400);
+      return execFile("tasklist", ["/FO", "CSV", "/NH"], { windowsHide: true, maxBuffer: 4 << 20 }, (err, out) => {
+        const procs = err ? [] : out.split(/\r?\n/).map(l => (l.match(/^"([^"]+)"/) || [])[1]).filter(Boolean);
+        const hit = procs.find(n => n.toLowerCase().includes(name));
+        json(res, { running: !!hit, process: hit || "" });
+      });
+    }
     if (p === "/api/paths") {
       // dossier d'installation (les sources OBS pointent vers file:///<dossier>/widget.html…)
       const root = ROOT.split(path.sep).join("/");
