@@ -288,6 +288,7 @@ app = f'''<!doctype html>
 </main>
 </div>
 </div>
+<div id="updBanner" hidden title="Voir le détail"><b>Mise à jour de BL Studio</b><div class="updbar"><i id="updBanBar"></i></div><span class="hint" id="updBanStep"></span></div>
 <div class="toast" id="toast"></div>
 <script>
 // ===== Hub : stats, chat, alertes, bot, mini-jeux, classement, connexions =====

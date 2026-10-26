@@ -149,7 +149,8 @@
   .stile.live .badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ko); color: #fff; font-size: 11px; font-weight: 700; }
   .stile.sel .nm { color: var(--acc); }
   .stile .edit { font-size: 11px; color: var(--mute); font-weight: 400; }
-  .stile .del { font-size: 11px; color: var(--mute); font-weight: 400; margin-left: 6px; }
+  .stile .del, .stile .mkv { font-size: 11px; color: var(--mute); font-weight: 400; margin-left: 6px; }
+  .stile .mkv { color: var(--acc); }
   .stile .del:hover { color: var(--ko); }
   .pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .pads > p, .libgrid > p { grid-column: 1 / -1; }
@@ -609,19 +610,30 @@ function onEvent(type, data) {
 
 // ---------- Onglet Scènes ----------
 const thumbs = {};
+let vNames = new Set(), vCanvasOk = false;   // scènes « V · … » existantes (rafraîchi à chaque rendu)
 function renderScenes() {
+  verticalCanvas().then(async cv => {
+    vCanvasOk = !!cv;
+    const before = [...vNames].join("|");
+    vNames = new Set(cv ? (await verticalScenes(cv)).map(sc => sc.sceneName) : []);
+    if ([...vNames].join("|") !== before) renderScenes();
+  });
   $("sceneButtons").innerHTML = scenes.map(n =>
     `<div class="stile ${n === current ? "live" : ""} ${n === selected ? "sel" : ""}" data-s="${esc(n)}" role="button" tabindex="0">
        ${thumbs[n] ? `<img src="${thumbs[n]}" alt="">` : `<div class="th"></div>`}${n === current ? `<span class="badge">En direct</span>` : ""}
-       <div class="nm"><span>${esc(n)}</span><a class="edit" href="#" data-edit="${esc(n)}">Éléments</a><a class="del" href="#" data-del="${esc(n)}" title="Supprimer la scène">Supprimer</a></div></div>`).join("");
+       <div class="nm"><span>${esc(n)}</span><a class="edit" href="#" data-edit="${esc(n)}">Éléments</a>${vCanvasOk && !/^⚡/.test(n) && !vNames.has(`V · ${n}`) ? `<a class="mkv" href="#" data-mkv="${esc(n)}" title="Créer la version verticale (TikTok)">+ Vertical</a>` : ""}<a class="del" href="#" data-del="${esc(n)}" title="Supprimer la scène">Supprimer</a></div></div>`).join("")
+    + (vCanvasOk && scenes.some(n => !/^⚡/.test(n) && !vNames.has(`V · ${n}`)) ? `<div class="hint" style="grid-column:1/-1">Certaines scènes n'ont pas de version verticale : le vertical (TikTok) ne peut pas les suivre.
+       <button class="btn small" id="mkAllV">Créer toutes les versions verticales manquantes</button></div>` : "");
   $("sceneButtons").querySelectorAll(".stile").forEach(t => {
     t.onclick = async e => {
       if (e.target.dataset.edit !== undefined) { e.preventDefault(); selected = e.target.dataset.edit; renderScenes(); renderItems(); return; }
       if (e.target.dataset.del !== undefined) { e.preventDefault(); return deleteScene(e.target.dataset.del); }
+      if (e.target.dataset.mkv !== undefined) { e.preventDefault(); return makeTwins([e.target.dataset.mkv]); }
       selected = t.dataset.s; await call("SetCurrentProgramScene", { sceneName: selected }); renderItems();
     };
     t.onkeydown = e => { if (e.key === "Enter") t.click(); };
   });
+  if ($("mkAllV")) $("mkAllV").onclick = () => makeTwins(scenes.filter(n => !/^⚡/.test(n) && !vNames.has(`V · ${n}`)));
 }
 // vignettes : capture de chaque scène, seulement quand l'onglet Scènes est ouvert
 let thumbBusy = false;
@@ -1566,6 +1578,7 @@ async function reloadVerticalDock(force) {
     reloadingCollection = false;
   }
   await refreshAll();
+  syncVertical(current);      // le vertical se recale sur la scène en direct
   toast("Dock Vertical actualisé : la nouvelle scène verticale est disponible");
   return true;
 }
@@ -1576,6 +1589,68 @@ setInterval(async () => { if (verticalReloadPending && ws && ws.readyState === 1
 async function twinOf(name) {
   const cv = await verticalCanvas();
   return cv ? (await verticalScenes(cv)).find(sc => sc.sceneName === `V · ${name}`) || null : null;
+}
+
+// ---------- version verticale d'une scène existante, construite à partir de la scène 16:9 ----------
+// plein écran → remplit le 1080 × 1920 (fond, jeu, webcam) ; le reste est recentré, réduit si besoin, et sa hauteur étirée en proportion
+async function twinFromScene(name, cv, vs) {
+  const vname = `V · ${name}`;
+  if (vs.some(sc => sc.sceneName === vname)) return false;
+  const items = [];
+  const collect = async (list, groupName) => {
+    for (const it of list) {
+      if (it.isGroup) {
+        const { sceneItems } = await call("GetGroupSceneItemList", { sceneName: it.sourceName }).catch(() => ({ sceneItems: [] }));
+        await collect(sceneItems, it.sourceName);
+      } else if (!/^Repère dossier/.test(it.sourceName)) items.push(it);
+    }
+  };
+  await collect((await call("GetSceneItemList", { sceneName: name })).sceneItems);
+  const { sceneUuid } = await call("CreateScene", { sceneName: vname, canvasUuid: cv.canvasUuid });
+  const names = inputs.map(i => i.inputName);
+  const vglob = vs.find(sc => /overlays/i.test(sc.sceneName));
+  for (const it of items) {
+    try {
+      const tr = it.sceneItemTransform, w = tr.width || tr.boundsWidth || 0, h = tr.height || tr.boundsHeight || 0;
+      let src = it.sourceName, srcUuid = null;
+      if (/overlays \(toutes/i.test(src)) { if (!vglob) continue; srcUuid = vglob.sceneUuid; }
+      else if (names.includes(`${src} (vertical)`)) src = `${src} (vertical)`;
+      // textes et comptes à rebours propres à la scène : copiés en « V · … »
+      if (src === `${name} - Titre` || src === `${name} - Sous-titre` || src === `${name} - Compte à rebours`) {
+        const info = inputs.find(i => i.inputName === src), { inputSettings } = await call("GetInputSettings", { inputName: src });
+        const copy = { ...inputSettings };
+        if (copy.font?.size) copy.font = { ...copy.font, size: Math.round(copy.font.size * (copy.font.size > 80 ? 0.75 : 0.85)) };
+        const newName = `V · ${src}`;
+        if (!names.includes(newName)) { await call("CreateInput", { sceneUuid, inputName: newName, inputKind: info.inputKind, inputSettings: copy }); names.push(newName); }
+        else await call("CreateSceneItem", { sceneUuid, sourceName: newName });
+        const { sceneItemId } = await call("GetSceneItemId", { sceneUuid, sourceName: newName });
+        await call("SetSceneItemTransform", { sceneUuid, sceneItemId, sceneItemTransform: { positionX: 540, positionY: Math.round(tr.positionY * 1.4 + 120), alignment: 0 } });
+        continue;
+      }
+      const { sceneItemId } = await call("CreateSceneItem", srcUuid ? { sceneUuid, sourceUuid: srcUuid, sceneItemEnabled: it.sceneItemEnabled }
+                                                                    : { sceneUuid, sourceName: src, sceneItemEnabled: it.sceneItemEnabled });
+      if (srcUuid) { await call("SetSceneItemLocked", { sceneUuid, sceneItemId, sceneItemLocked: true }); continue; }
+      const full = w >= 1800 && h >= 1000;
+      const fill = full && /capture|webcam|jeu|game/i.test(src);
+      const t = full
+        ? { positionX: 0, positionY: 0, alignment: 5, boundsType: fill ? "OBS_BOUNDS_SCALE_OUTER" : "OBS_BOUNDS_STRETCH", boundsWidth: 1080, boundsHeight: 1920, boundsAlignment: 0 }
+        : (() => { const bw = Math.min(w || 600, 1000), bh = Math.max(1, Math.round((h || 150) * bw / (w || 600)));
+            // hauteur : même position relative dans le 1920 que dans le 1080
+            const cy = (tr.positionY + (tr.alignment & 8 ? -h / 2 : tr.alignment & 4 ? h / 2 : 0)) / 1080 * 1920;
+            return { positionX: 540, positionY: Math.round(Math.max(bh / 2, Math.min(1920 - bh / 2, cy))), alignment: 0, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: bw, boundsHeight: bh, boundsAlignment: 0 }; })();
+      await call("SetSceneItemTransform", { sceneUuid, sceneItemId, sceneItemTransform: t });
+    } catch {}
+  }
+  return true;
+}
+async function makeTwins(list) {
+  const cv = await verticalCanvas();
+  if (!cv) return toast("Canevas vertical introuvable : le plugin Aitum Vertical est-il installé ?");
+  toast(`Création de ${list.length} version(s) verticale(s)…`);
+  let made = 0;
+  for (const n of list) { if (await twinFromScene(n, cv, await verticalScenes(cv))) made++; }
+  await refreshAll();
+  if (made) { toast(`${made} version(s) verticale(s) créée(s) : ajuste-les si besoin dans le dock Vertical`); setTimeout(() => reloadVerticalDock(true), 600); }
 }
 
 // suppression d'une scène, de sa version verticale et des textes / comptes à rebours créés pour elle

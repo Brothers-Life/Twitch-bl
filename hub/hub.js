@@ -551,6 +551,18 @@ function checkDock(delay) {
     obsRunning(a => a && setTimeout(() => obsRunning(b => b && ![...hub.clients].some(c => c.readyState === 1 && c.studio) && openStudioWindow()), 3000));
   }, delay);
 }
+// l'installeur 1.0.0 mettait les plugins Aitum dans %APPDATA%\obs-studio\plugins, qu'OBS (Windows) ne lit pas :
+// on les copie dans C:\ProgramData\obs-studio\plugins (pris en compte au prochain démarrage d'OBS)
+function fixPluginFolder() {
+  const from = path.join(process.env.APPDATA || "", "obs-studio", "plugins");
+  const to = path.join(process.env.ProgramData || "C:\\ProgramData", "obs-studio", "plugins");
+  for (const name of ["vertical-canvas", "aitum-multistream"]) {
+    const src = path.join(from, name), dst = path.join(to, name);
+    if (!fs.existsSync(src) || fs.existsSync(dst)) continue;
+    try { fs.cpSync(src, dst, { recursive: true }); console.log(`Plugin ${name} déplacé vers ${to} : redémarre OBS pour l'activer`); hub.pluginsFixed = true; }
+    catch (e) { console.log(`Plugin ${name} : copie impossible (${e.message})`); }
+  }
+}
 function openStudioWindow() {
   const url = `http://localhost:${PORT}/`;
   const edge = [process.env["ProgramFiles(x86)"], process.env.ProgramFiles].filter(Boolean)
@@ -584,6 +596,7 @@ server.listen(PORT, "127.0.0.1", () => {
   hub.updater.start();
   hub.media.start();
   checkDock(25000);   // au démarrage d'OBS : le dock a 25 s pour se connecter
+  fixPluginFolder();
   // classement des points pour le widget « leaderboard »
   setInterval(() => hub.broadcast({ kind: "leaderboard", leaderboard: hub.bot.leaderboard(10) }), 30000);
 });

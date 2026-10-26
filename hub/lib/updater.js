@@ -10,15 +10,18 @@ const { spawn, execFile } = require("child_process");
 const KEEP = [/^sons\//, /^medias\//, /^hub\/data\//, /^logo\.png$/, /^logo-original\.png$/, /^nowplaying\.js$/, /^transitions\/stinger_custom_/];
 const CHECK_EVERY = 6 * 3600 * 1000;
 
-function get(url, { json = false, file = null, hops = 5 } = {}) {
+function get(url, { json = false, file = null, hops = 5, onProgress = null } = {}) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: { "User-Agent": "BL-Studio-Updater", Accept: json ? "application/vnd.github+json" : "application/octet-stream" } }, res => {
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location && hops > 0) {
         res.resume();
-        return resolve(get(new URL(res.headers.location, url).toString(), { json, file, hops: hops - 1 }));
+        return resolve(get(new URL(res.headers.location, url).toString(), { json, file, hops: hops - 1, onProgress }));
       }
       if (res.statusCode !== 200) { res.resume(); return reject(new Error(`GitHub a répondu ${res.statusCode}`)); }
       if (file) {
+        const total = parseInt(res.headers["content-length"] || "0", 10);
+        let done = 0;
+        if (onProgress) res.on("data", c => { done += c.length; onProgress(done, total); });
         const out = fs.createWriteStream(file);
         res.pipe(out);
         out.on("finish", () => out.close(() => resolve(file)));
@@ -54,7 +57,21 @@ class Updater {
   constructor(hub, root) {
     this.hub = hub;
     this.root = root;
-    this.state = { current: this.version(), latest: null, available: false, notes: "", checkedAt: 0, installing: false, error: "" };
+    this.state = { current: this.version(), latest: null, available: false, notes: "", checkedAt: 0, installing: false, error: "",
+      progress: { pct: 0, step: "" }, log: [] };
+    this.lastPublish = 0;
+  }
+
+  // journal visible dans BL Studio (40 dernières lignes)
+  log(text) {
+    const t = new Date().toLocaleTimeString("fr-FR");
+    this.state.log = [...this.state.log, `${t}  ${text}`].slice(-40);
+    console.log("Mise à jour :", text);
+    this.publish(true);
+  }
+  step(pct, step) {
+    this.state.progress = { pct: Math.max(0, Math.min(100, Math.round(pct))), step };
+    this.publish();
   }
 
   version() {
@@ -63,10 +80,17 @@ class Updater {
 
   get cfg() { return this.hub.config.data.updates; }
 
-  publish() { this.hub.broadcast({ kind: "update", update: this.state }); }
+  // au plus 4 envois par seconde pendant le téléchargement (les lignes du journal partent tout de suite)
+  publish(force) {
+    const now = Date.now();
+    if (!force && now - this.lastPublish < 250) return;
+    this.lastPublish = now;
+    this.hub.broadcast({ kind: "update", update: this.state });
+  }
 
   async check() {
     try {
+      this.log("Recherche d'une nouvelle version sur GitHub…");
       const r = await get(`https://api.github.com/repos/${this.cfg.repo}/releases/latest`, { json: true });
       const asset = (r.assets || []).find(a => /^bl-studio.*\.zip$/i.test(a.name));
       this.state.latest = String(r.tag_name || "").replace(/^v/, "");
@@ -74,8 +98,10 @@ class Updater {
       this.state.asset = asset?.browser_download_url || "";
       this.state.available = !!asset && newer(this.state.latest, this.state.current);
       this.state.error = "";
+      this.log(this.state.available ? `Version ${this.state.latest} disponible (installée : ${this.state.current})` : `À jour (version ${this.state.current})`);
     } catch (e) {
       this.state.error = `Vérification impossible : ${e.message}`;
+      this.log(this.state.error);
     }
     this.state.checkedAt = Date.now();
     this.publish();
@@ -86,20 +112,35 @@ class Updater {
     if (this.state.installing) return this.state;
     if (!this.state.available) await this.check();
     if (!this.state.available) return this.state;
-    this.state.installing = true; this.state.error = ""; this.publish();
+    this.state.installing = true; this.state.error = ""; this.state.log = [];
+    this.log(`Installation de la version ${this.state.latest}`);
     const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "bl-studio-maj-"));
     try {
-      const zip = await get(this.state.asset, { file: path.join(tmp, "maj.zip") });
+      this.step(0, "Téléchargement");
+      let lastMb = -1;
+      const zip = await get(this.state.asset, { file: path.join(tmp, "maj.zip"), onProgress: (done, total) => {
+        const mb = Math.floor(done / 1048576);
+        this.step(total ? done / total * 60 : 30, `Téléchargement : ${mb} / ${total ? Math.round(total / 1048576) : "?"} Mo`);
+        if (mb !== lastMb && mb % 5 === 0) { lastMb = mb; this.log(`Téléchargé : ${mb} Mo${total ? ` sur ${Math.round(total / 1048576)}` : ""}`); }
+      } });
+      this.log("Téléchargement terminé");
+      this.step(62, "Décompression");
+      this.log("Décompression de l'archive…");
       const dir = path.join(tmp, "fichiers");
       await new Promise((resolve, reject) => execFile("powershell", ["-NoProfile", "-NonInteractive", "-Command",
         `Expand-Archive -LiteralPath '${zip.replace(/'/g, "''")}' -DestinationPath '${dir.replace(/'/g, "''")}' -Force`],
         { windowsHide: true, timeout: 180000 }, err => (err ? reject(new Error("décompression impossible")) : resolve())));
       const files = walk(dir).filter(f => !KEEP.some(k => k.test(f)));
       if (!files.includes("version.json") || !files.includes("hub/hub.js")) throw new Error("archive incomplète");
+      this.log(`${files.length} fichiers à mettre en place (réglages, logo, sons et transitions perso conservés)`);
       // le lecteur de musique tourne : on l'arrête pour pouvoir remplacer son .exe
       this.hub.media?.stop();
       await new Promise(r => setTimeout(r, 800));
+      let n = 0;
       for (const f of files) {
+        n++;
+        if (n % 200 === 0 || n === files.length) { this.step(65 + n / files.length * 30, `Copie des fichiers : ${n} / ${files.length}`); }
+        if (n % 1000 === 0) this.log(`Copiés : ${n} / ${files.length}`);
         const dest = path.join(this.root, ...f.split("/"));
         // transitions déjà présentes (souvent régénérées avec le logo de la chaîne) : on n'ajoute que les nouvelles
         if (f.startsWith("transitions/") && fs.existsSync(dest)) continue;
@@ -109,13 +150,15 @@ class Updater {
       this.state.current = this.version();
       this.state.available = false;
       this.state.restarting = true;
-      this.publish();
+      this.step(100, "Redémarrage du Hub");
+      this.log(`Version ${this.state.current} installée : redémarrage du Hub, BL Studio se recharge tout seul`);
       console.log(`Mise à jour ${this.state.current} installée, redémarrage du Hub…`);
       setTimeout(() => this.restart(), 800);
     } catch (e) {
       this.state.installing = false;
       this.state.error = `Mise à jour échouée : ${e.message}`;
-      this.publish();
+      this.step(0, "");
+      this.log(this.state.error + " (rien n'a été cassé : la version actuelle reste en place)");
     } finally {
       setTimeout(() => fs.rm(tmp, { recursive: true, force: true }, () => {}), 5000);
     }

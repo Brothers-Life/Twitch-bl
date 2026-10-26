@@ -88,6 +88,12 @@
   .kpi b { display: block; font-size: 21px; font-variant-numeric: tabular-nums; }
   .kpi small { color: var(--mute); font-size: 11px; }
   @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hero { grid-template-columns: 1fr; } .hero-main .big { font-size: 48px; } .hero-side { grid-template-rows: none; grid-template-columns: repeat(3, minmax(0, 1fr)); } .kv { flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; } .kv b { font-size: 22px; } }
+  .updbar { height: 10px; border-radius: 5px; background: rgba(255,255,255,.08); overflow: hidden; margin: 6px 0 4px; }
+  .updbar i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--acc), var(--hi, #fae664)); transition: width .3s; }
+  .updlog { max-height: 180px; overflow: auto; margin: 6px 0 0; padding: 8px 10px; background: rgba(0,0,0,.3); border-radius: 8px; font: 11.5px/1.5 Consolas, monospace; white-space: pre-wrap; }
+  #updBanner { position: fixed; right: 16px; bottom: 16px; z-index: 50; width: 300px; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--acc);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45); cursor: pointer; }
+  #updBanner b { display: block; margin-bottom: 2px; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 </style>
 </head>
@@ -267,6 +273,8 @@ Non</textarea>
       <div class="row"><label>Dernière version</label><span id="updLatest">…</span></div>
       <p class="hint" id="updState"></p>
       <pre class="hint" id="updNotes" style="white-space:pre-wrap;margin:0 0 6px;font:inherit"></pre>
+      <div id="updProg" hidden><div class="updbar"><i id="updBar"></i></div><div class="hint" id="updStep"></div></div>
+      <details id="updLogBox"><summary class="hint">Journal</summary><pre class="updlog" id="updLog"></pre></details>
       <div class="row"><button class="btn" id="updCheck">Vérifier maintenant</button><button class="btn primary" id="updInstall" hidden>Installer la mise à jour</button></div>
       <label class="row" style="margin:0"><input type="checkbox" id="updAuto"> Installer automatiquement les mises à jour (jamais pendant un live)</label>
       <label class="row" style="margin:0"><input type="checkbox" id="uiReopen"> Rouvrir BL Studio dans une fenêtre si le dock est fermé dans OBS</label>
@@ -274,6 +282,7 @@ Non</textarea>
     </div>
   </section>
 </main>
+<div id="updBanner" hidden title="Voir le détail"><b>Mise à jour de BL Studio</b><div class="updbar"><i id="updBanBar"></i></div><span class="hint" id="updBanStep"></span></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -503,6 +512,16 @@ function renderUpdate(u) {
   $("updInstall").hidden = !u.available || u.installing;
   $("updNotes").textContent = u.available ? u.notes : "";
   $("updBtn").hidden = !u.available;
+  // progression + journal (et petit encart visible depuis n'importe quel onglet)
+  const p = u.progress || { pct: 0, step: "" };
+  $("updProg").hidden = !u.installing;
+  $("updBar").style.width = $("updBanBar").style.width = `${p.pct}%`;
+  $("updStep").textContent = $("updBanStep").textContent = `${p.step}${p.step ? " · " : ""}${p.pct} %`;
+  $("updBanner").hidden = !u.installing;
+  const logEl = $("updLog"), atEnd = logEl.scrollTop + logEl.clientHeight >= logEl.scrollHeight - 4;
+  logEl.textContent = (u.log || []).join("\n") || "Rien pour l'instant.";
+  if (atEnd) logEl.scrollTop = logEl.scrollHeight;
+  if (u.installing) $("updLogBox").open = true;
   if (u.restarting && !reloadPlanned) { reloadPlanned = true; toast("Mise à jour installée"); setTimeout(() => location.reload(), 7000); }
 }
 $("uiReopen").onchange = e => saveSection("ui", { reopen: e.target.checked }, e.target.checked ? "BL Studio se rouvrira si le dock est fermé" : "Réouverture automatique désactivée");
@@ -510,6 +529,7 @@ $("updCheck").onclick = async () => { $("updState").textContent = "Vérification
 $("updInstall").onclick = async () => { await post("/api/update/install"); toast("Installation de la mise à jour…"); };
 $("updAuto").onchange = e => saveSection("updates", { auto: e.target.checked }, e.target.checked ? "Mises à jour automatiques activées" : "Mises à jour automatiques désactivées");
 $("updBtn").onclick = () => document.querySelector('[data-tab="conn"]').click();
+$("updBanner").onclick = () => { document.querySelector('[data-tab="conn"]').click(); setTimeout(() => $("updCard").scrollIntoView({ behavior: "smooth" }), 100); };
 
 // ---------- Chargement + temps réel ----------
 async function load() {
