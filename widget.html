@@ -58,6 +58,8 @@
   .music strong { font-size: 27vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .music span { font-size: 20vh; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+  /* l'égaliseur (display:flex) ignorerait l'attribut hidden : avec une pochette, on le masque pour de bon */
+  .music [hidden] { display: none !important; }
   .music .cover { flex: none; height: 64vh; aspect-ratio: 1; border-radius: 4vh; object-fit: cover; box-shadow: 0 1vh 4vh rgba(0,0,0,.5); }
   .music .src { display: inline-flex; align-items: center; gap: 2vh; }
   .music .src i { width: 7vh; height: 7vh; border-radius: 50%; background: var(--src, var(--c2)); box-shadow: 0 0 3vh var(--src, var(--c2)); }
