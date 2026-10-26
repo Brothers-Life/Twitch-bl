@@ -151,10 +151,14 @@ minijeux = A(browser("Hub · Mini-jeux", W, H, page="minijeux.html"))
 minijeuxV = A(browser("Hub · Mini-jeux (vertical)", 1080, 1920, page="minijeux.html"))
 chatU = A(browser("Hub · Chat unifié", 520, 700, page="chat-unifie.html", evenements=1, max=10, fade=40))
 soutiens = A(browser("Hub · Derniers soutiens", 620, 120, page="soutiens.html", every=5))
+# lecteur de la soundboard : audio géré par OBS et entendu dans le casque (écoute + sortie)
+sons = A(src("Hub · Sons", "browser_source", {"is_local_file": False, "url": URL + "sons.html", "width": 16, "height": 16,
+    "reroute_audio": True, "shutdown": False, "restart_when_active": False, "css": ""}, mixers=255))
+sons["monitoring_type"] = 2
 
 # alertes + mini-jeux, imbriqués en haut de chaque scène
-glob = src("⚡ Overlays (toutes les scènes)", "scene", {"id_counter": 2, "custom_size": False, "items": number([
-    item(minijeux), item(alertes, 960, 40, align=4)])})
+glob = src("⚡ Overlays (toutes les scènes)", "scene", {"id_counter": 3, "custom_size": False, "items": number([
+    item(minijeux), item(alertes, 960, 40, align=4), item(sons)])})
 glob["hotkeys"] = {"OBSBasic.SelectScene": []}; glob["canvas_uuid"] = MAIN
 TOP = lambda: [item(glob, locked=True)]
 
