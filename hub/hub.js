@@ -128,10 +128,12 @@ class Hub {
   broadcastStatus() { this.broadcast({ kind: "status", status: this.status() }); }
 
   // point d'entrée de tous les événements, quelle que soit la plateforme
-  emit(e, { silent = false } = {}) {
+  // test : affiché (alerte, chat, soutiens) mais pas compté dans les stats ni les points, et ignoré par le bot
+  emit(e, { silent = false, test = false } = {}) {
     e.id = this.nextId++;
     e.ts = Date.now();
-    if (!silent) {
+    if (test) e.test = true;
+    if (!silent && !test) {
       this.stats.record(e);
       this.bot.reward(e);
     }
@@ -140,8 +142,8 @@ class Hub {
       if (this.recentChat.length > 200) this.recentChat.shift();
     }
     this.broadcast({ kind: "event", event: e });
-    if (!silent) {
-      this.alert(e);
+    if (!silent) this.alert(e);
+    if (!silent && !test) {
       this.bot.handle(e);
       this.games.handle(e);
     }
@@ -337,9 +339,17 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/twitch/logout") { hub.config.data.twitch.token = ""; hub.config.flush(); hub.twitch.start(); return json(res, { ok: true }); }
     if (p === "/api/reconnect") { hub.restart(body.section); return json(res, { ok: true }); }
     if (p === "/api/test") {
+      if (body.type === "chat") {
+        const platform = ["twitch", "tiktok", "youtube"].includes(body.platform) ? body.platform : "twitch";
+        const users = { twitch: ["Lucas_RP", "NinaGaming", "Le_Flic_42"], tiktok: ["sarah.tkt", "momo_officiel"], youtube: ["Kevin Dupont", "Clara Live"] };
+        const lines = ["Salut tout le monde !", "Trop bien ce live 🔥", "GG c'était propre", "On veut la suite !", "Premier ici 😎", "Message de test, tout fonctionne !"];
+        const user = body.user || users[platform][Math.floor(Math.random() * users[platform].length)];
+        hub.emit({ type: "chat", platform, user, message: body.message || lines[Math.floor(Math.random() * lines.length)] }, { test: true });
+        return json(res, { ok: true });
+      }
       const base = TEST_EVENTS[body.type];
       if (!base) return json(res, { error: "type inconnu" }, 400);
-      hub.emit({ type: body.type, ...base, ...(body.data || {}) });
+      hub.emit({ type: body.type, ...base, ...(body.data || {}) }, { test: true });
       return json(res, { ok: true });
     }
     if (p === "/api/say") {
@@ -457,7 +467,7 @@ function runAction(name, q, res) {
     case "test": {
       const base = TEST_EVENTS[q.get("type") || "follow"];
       if (!base) return json(res, { error: "type inconnu" }, 400);
-      hub.emit({ type: q.get("type") || "follow", ...base }); return json(res, { ok: true });
+      hub.emit({ type: q.get("type") || "follow", ...base }, { test: true }); return json(res, { ok: true });
     }
     case "say": return json(res, { ok: hub.twitch.say(String(q.get("text") || "").slice(0, 400)) });
     default: {

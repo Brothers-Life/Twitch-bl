@@ -34,7 +34,8 @@ class Games {
 
   stop() { this.clear(); this.state = null; this.push(); }
 
-  announce(text) { this.hub.bot.reply({ platform: "twitch", user: this.cfg.name }, text); }
+  // un mini-jeu de test (bouton dans BL Studio) ne poste rien dans le chat
+  announce(text) { if (!this.testMode) this.hub.bot.reply({ platform: "twitch", user: this.cfg.name }, text); }
 
   finish(result, showMs = 8000) {
     this.clear();
@@ -45,6 +46,7 @@ class Games {
 
   start(type, opts = {}) {
     this.clear();
+    this.testMode = !!opts.test;
     const d = (opts.duration || this.cfg.durations[type] || 30) * 1000;
     const base = { type, phase: "play", startedAt: Date.now(), endsAt: Date.now() + d };
     if (type === "quiz") {

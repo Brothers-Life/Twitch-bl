@@ -965,7 +965,9 @@ async function renderWidgets() {
     const own = u.searchParams.get("stylefixe") === "1" ? u.searchParams.get("style") || "" : "";
     const type = u.searchParams.get("w") || page(w.url).replace(".html", "");
     return `<details class="card" data-n="${n}"><summary>${esc(w.name)} <span class="hint">(${esc(type)}${own ? " · " + STYLES[own][0] : ""})</span></summary>
-      <iframe class="preview" style="aspect-ratio:${w.w}/${w.h};max-height:260px;margin:6px 0" data-src="${esc(previewUrl(u))}"></iframe>
+      <iframe class="preview" style="aspect-ratio:${w.w}/${w.h};width:min(100%, ${Math.round((w.h > w.w ? 480 : 300) * w.w / w.h)}px);margin:6px 0" data-src="${esc(previewUrl(u))}"></iframe>
+      <div class="row wtests"><label>Tester</label><div class="chips">${widgetTests(page(w.url), u).map(([l, a], j) =>
+        `<button class="btn small" data-test="${j}">${esc(l)}</button>`).join("")}</div></div>
       <div class="row wstyle-row"><label>Style</label><select class="wst">
         <option value="">Par défaut (${esc(STYLES[da.style][0])})</option>
         ${Object.entries(STYLES).map(([k, [l]]) => `<option value="${k}" ${k === own ? "selected" : ""}>${l}</option>`).join("")}
@@ -986,6 +988,12 @@ async function renderWidgets() {
       return u;
     };
     el.querySelector(".wst").onchange = () => { frame.src = previewUrl(styled()); };
+    // tests : l'aperçu ci-dessus et la source dans OBS réagissent en direct
+    const tests = widgetTests(page(list[el.dataset.n].url), new URL(list[el.dataset.n].url));
+    el.querySelectorAll("[data-test]").forEach(b => b.onclick = async () => {
+      if (!frame.src) frame.src = frame.dataset.src;
+      try { await tests[+b.dataset.test][1](list[el.dataset.n]); } catch (e) { toast(e.message); }
+    });
     el.querySelector(".save").onclick = async () => {
       const w = list[el.dataset.n], u = styled();
       await call("SetInputSettings", { inputName: w.name, inputSettings: { url: u.toString() } });
@@ -993,6 +1001,33 @@ async function renderWidgets() {
       toast("Widget mis à jour");
     };
   });
+}
+
+// boutons de test proposés selon le widget : [libellé, action]
+function widgetTests(file, u) {
+  const t = type => () => hubPost("/api/test", { type });
+  const chat = platform => () => hubPost("/api/test", { type: "chat", platform });
+  const reload = ["Recharger", w => call("PressInputPropertiesButton", { inputName: w.name, propertyName: "refreshnocache" }).then(() => toast("Source rechargée"))];
+  const w = u.searchParams.get("w");
+  if (file === "alertes.html") return [["Follow", t("follow")], ["Abonnement", t("sub")], ["Abos offerts", t("giftsub")], ["Bits", t("bits")],
+    ["Raid", t("raid")], ["Don", t("donation")], ["Cadeau TikTok", t("gift")], ["Super Chat", t("superchat")], ["Membre", t("member")], reload];
+  // rafale de messages des 3 plateformes pour voir le style d'un coup
+  const burst = (platforms, n = 6) => async () => { for (let i = 0; i < n; i++) { await hubPost("/api/test", { type: "chat", platform: platforms[i % platforms.length] }); await new Promise(r => setTimeout(r, 350)); } };
+  if (file === "chat-unifie.html") return [["Remplir le chat", burst(["twitch", "tiktok", "youtube"])], ["Message Twitch", chat("twitch")], ["Message TikTok", chat("tiktok")],
+    ["Message YouTube", chat("youtube")], ["Événement", t("follow")], reload];
+  if (w === "chat") return [["Remplir le chat", burst(["twitch"], 5)], ["Message de test", chat("twitch")], reload];
+  if (file === "soutiens.html") return [["Follow", t("follow")], ["Abonnement", t("sub")], ["Don", t("donation")], ["Cadeau TikTok", t("gift")], reload];
+  if (file === "minijeux.html") return [
+    ["Sondage", () => hubPost("/api/game", { action: "sondage", options: { test: true, question: "Sondage de test", options: ["Oui", "Non", "Peut-être"], duration: 20 } })],
+    ["Quiz", () => hubPost("/api/game", { action: "quiz", options: { test: true, duration: 20 } })],
+    ["Roue", () => hubPost("/api/game", { action: "roue", options: { test: true } })],
+    ["Devine le nombre", () => hubPost("/api/game", { action: "devine", options: { test: true, duration: 20 } })],
+    ["Arrêter", () => hubPost("/api/game", { action: "stop" })], reload];
+  if (w === "counter") { const id = u.searchParams.get("id") || "morts";
+    return [["+1", () => hubPost("/api/counter", { id, delta: 1 })], ["−1", () => hubPost("/api/counter", { id, delta: -1 })], ["Remettre à 0", () => hubPost("/api/counter", { id, set: 0 })], reload]; }
+  if (w === "countdown") return [["Relancer le compte à rebours", reload[1]]];
+  if (w === "music") return [["Lecture / pause", () => hubPost("/api/music", { cmd: "toggle" })], ["Suivant", () => hubPost("/api/music", { cmd: "next" })], reload];
+  return [reload];
 }
 
 // paramètres de la DA courante pour une nouvelle source navigateur

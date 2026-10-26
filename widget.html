@@ -325,6 +325,17 @@
     // chat Twitch en lecture anonyme (aucun compte nécessaire)
     const box = $("chat"), channel = get("channel", "").toLowerCase().replace(/^#/, "");
     const max = parseInt(get("max", "8")), fade = parseFloat(get("fade", "30"));
+    // messages de test envoyés depuis BL Studio (boutons « Tester ») : aperçu du style sans attendre le vrai chat
+    blHub(m => {
+      if (m.kind !== "event" || m.event.type !== "chat" || !m.event.test) return;
+      box.querySelector(".empty")?.remove();
+      const div = document.createElement("div");
+      div.className = "msg";
+      div.innerHTML = `<b style="color:${theme.c2}">${esc(m.event.user)}</b>${esc(m.event.message)}`;
+      box.appendChild(div);
+      while (box.children.length > max) box.firstChild.remove();
+      if (fade > 0) setTimeout(() => { div.classList.add("old"); setTimeout(() => div.remove(), 1000); }, fade * 1000);
+    });
     if (!channel) {
       box.innerHTML = `<div class="empty">Ajoute ton pseudo Twitch : channel=…</div>`;
     } else {
