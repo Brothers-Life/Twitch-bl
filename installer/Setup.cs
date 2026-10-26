@@ -2,6 +2,7 @@
 // télécharge la dernière version de BL Studio depuis GitHub, configure OBS puis l'ouvre.
 // Relancé plus tard, il met BL Studio à jour sans toucher aux réglages, jetons, points, logo ni scènes.
 // Compilé par outils/publier.py avec le csc.exe fourni avec Windows (C# 5, aucun outil à installer).
+//   BL-Studio-Setup.exe --verifier   : teste tout (logiciels, téléchargements, configuration OBS dans un dossier d'essai) sans rien installer
 using System;
 using System.Diagnostics;
 using System.Drawing;
@@ -17,11 +18,18 @@ using System.Windows.Forms;
 static class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
+        // relancé en administrateur uniquement pour copier les plugins dans ProgramData
+        if (args.Length == 2 && args[0] == "--plugins")
+        {
+            try { foreach (var zip in Directory.GetFiles(args[1], "*.zip")) Installer.Extract(zip, Installer.PluginDir, null); }
+            catch { Environment.Exit(1); }
+            return;
+        }
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new SetupForm());
+        Application.Run(new SetupForm(args.Length > 0 && args[0] == "--verifier"));
     }
 }
 
@@ -34,9 +42,12 @@ class SetupForm : Form
     readonly Label step = new Label();
     readonly Button go = new Button(), quit = new Button();
 
-    public SetupForm()
+    readonly bool verify;
+
+    public SetupForm(bool verify)
     {
-        Text = "Installation de BL Studio";
+        this.verify = verify;
+        Text = verify ? "Vérification de BL Studio" : "Installation de BL Studio";
         ClientSize = new Size(620, 470);
         FormBorderStyle = FormBorderStyle.FixedSingle;
         MaximizeBox = false;
@@ -60,13 +71,14 @@ class SetupForm : Form
         bar.SetBounds(26, 140, 568, 10); bar.Maximum = 100;
         log.SetBounds(26, 162, 568, 240);
         log.ReadOnly = true; log.BorderStyle = BorderStyle.None; log.BackColor = Panel; log.ForeColor = Txt; log.Font = new Font("Segoe UI", 9f);
-        go.Text = "Installer"; go.SetBounds(394, 418, 110, 34); Style(go, true);
+        go.Text = verify ? "Vérifier" : "Installer"; go.SetBounds(394, 418, 110, 34); Style(go, true);
         quit.Text = "Fermer"; quit.SetBounds(512, 418, 82, 34); Style(quit, false);
         go.Click += (s, e) => Start();
         quit.Click += (s, e) => Close();
         Controls.AddRange(new Control[] { stripe, title, sub, step, bar, log, go, quit });
         Log("Dossier d'installation : " + Installer.Dest);
-        Log("Clique sur « Installer ». Windows peut demander l'autorisation pour chaque logiciel installé.");
+        Log(verify ? "Mode vérification : rien n'est installé ni modifié. Clique sur « Vérifier »."
+                   : "Clique sur « Installer ». Windows peut demander l'autorisation pour chaque logiciel installé.");
     }
 
     static void Style(Button b, bool primary)
@@ -93,7 +105,7 @@ class SetupForm : Form
     void Start()
     {
         go.Enabled = false; quit.Enabled = false;
-        var inst = new Installer();
+        var inst = new Installer { VerifyOnly = verify };
         inst.OnLog = l => Log(l);
         inst.OnOk = l => Log("✓ " + l, Color.FromArgb(60, 207, 110));
         inst.OnStep = (t, p) => BeginInvoke(new Action(() => { step.Text = t; bar.Value = Math.Min(100, p); Log(""); Log(t, Hi); }));
@@ -104,7 +116,7 @@ class SetupForm : Form
             try
             {
                 inst.Run();
-                BeginInvoke(new Action(() => { step.Text = "Installation terminée : OBS s'ouvre avec BL Studio."; bar.Value = 100; quit.Text = "Terminer"; quit.Enabled = true; }));
+                BeginInvoke(new Action(() => { step.Text = verify ? "Vérification terminée : tout est prêt pour l'installation." : "Installation terminée : OBS s'ouvre avec BL Studio."; bar.Value = 100; quit.Text = "Terminer"; quit.Enabled = true; }));
             }
             catch (Exception ex)
             {
@@ -122,6 +134,10 @@ class Installer
     static readonly string ObsExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"obs-studio\bin\64bit\obs64.exe");
     static readonly string AppData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
     static readonly string ProgramData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+    // OBS (Windows) charge les plugins tiers depuis C:\ProgramData\obs-studio\plugins
+    public static readonly string PluginDir = Path.Combine(ProgramData, @"obs-studio\plugins");
+    public bool VerifyOnly;
+    string python;   // « py » (lanceur) ou chemin d'un python.exe réel
     readonly string tmp = Path.Combine(Path.GetTempPath(), "bl-studio-" + Guid.NewGuid().ToString("N").Substring(0, 8));
 
     public Action<string> OnLog = delegate { }, OnOk = delegate { };
@@ -134,6 +150,7 @@ class Installer
         Directory.CreateDirectory(tmp);
         try
         {
+            if (VerifyOnly) { Verify(); return; }
             Software();
             CloseObs();
             Plugins();
@@ -160,12 +177,13 @@ class Installer
         if (File.Exists(ObsExe)) OnOk("OBS Studio déjà installé"); else Winget("OBSProject.OBSStudio", "OBS Studio");
         if (Which("node") != null || File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"nodejs\node.exe"))) OnOk("Node.js déjà installé");
         else Winget("OpenJS.NodeJS.LTS", "Node.js");
-        if (Which("py") != null) OnOk("Python déjà installé"); else Winget("Python.Python.3.12", "Python");
+        python = FindPython();
+        if (python != null) OnOk("Python déjà installé"); else { Winget("Python.Python.3.12", "Python"); python = FindPython(); }
         if (Which("ffmpeg") != null) OnOk("ffmpeg déjà installé"); else Winget("Gyan.FFmpeg", "ffmpeg");
         if (!File.Exists(ObsExe)) throw new Exception("OBS Studio n'a pas pu être installé.");
-        if (Which("py") == null) throw new Exception("Python n'a pas pu être installé.");
+        if (python == null) throw new Exception("Python n'a pas pu être installé.");
         OnLog("Module Pillow pour Python (génération des transitions)…");
-        Exec("py", "-3 -m pip install --user --quiet --disable-pip-version-check pillow", false);
+        Exec(python, PyArgs("-m pip install --user --quiet --disable-pip-version-check pillow"), false);
         OnOk("Logiciels prêts");
     }
 
@@ -195,22 +213,30 @@ class Installer
     void Plugins()
     {
         OnStep("3/6  Plugins Aitum Vertical et Aitum Multistream", 40);
-        string userPlugins = Path.Combine(AppData, @"obs-studio\plugins");
-        Directory.CreateDirectory(userPlugins);
+        string zips = Path.Combine(tmp, "plugins");
+        Directory.CreateDirectory(zips);
         foreach (var p in new[] { new[] { "Aitum/obs-vertical-canvas", "vertical-canvas" }, new[] { "Aitum/obs-aitum-multistream", "aitum-multistream" } })
         {
-            if (Directory.Exists(Path.Combine(ProgramData, @"obs-studio\plugins\" + p[1])) || Directory.Exists(Path.Combine(userPlugins, p[1])))
-            {
-                OnOk(p[1] + " déjà installé");
-                continue;
-            }
+            if (Directory.Exists(Path.Combine(PluginDir, p[1]))) { OnOk(p[1] + " déjà installé"); continue; }
             string tag;
             string url = LatestAsset(p[0], @"-windows-programdata\.zip$", out tag);
-            string zip = Path.Combine(tmp, p[1] + ".zip");
-            Download(url, zip);
-            Extract(zip, userPlugins, null);
-            OnOk(p[1] + " " + tag + " installé");
+            Download(url, Path.Combine(zips, p[1] + ".zip"));
+            OnLog(p[1] + " " + tag + " téléchargé");
         }
+        if (Directory.GetFiles(zips, "*.zip").Length == 0) return;
+        try
+        {
+            Directory.CreateDirectory(PluginDir);
+            foreach (var zip in Directory.GetFiles(zips, "*.zip")) Extract(zip, PluginDir, null);
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // dossier protégé : copie avec l'autorisation administrateur (une fenêtre Windows le demande)
+            OnLog("Autorisation administrateur demandée pour copier les plugins dans OBS…");
+            var psi = new ProcessStartInfo(System.Windows.Forms.Application.ExecutablePath, "--plugins \"" + zips + "\"") { Verb = "runas", UseShellExecute = true };
+            using (var p = Process.Start(psi)) { p.WaitForExit(); if (p.ExitCode != 0) throw new Exception("Copie des plugins refusée."); }
+        }
+        OnOk("Plugins Aitum installés dans " + PluginDir);
     }
 
     // ---------- 4. BL Studio ----------
@@ -234,7 +260,7 @@ class Installer
     void ConfigureObs()
     {
         OnStep("5/6  Configuration d'OBS (scènes, dock, WebSocket, sorties TikTok et YouTube)", 75);
-        int code = Exec("py", "-3 -I \"" + Path.Combine(Dest, @"setup\obs_setup.py") + "\" --root \"" + Dest + "\"", true);
+        int code = Exec(python, PyArgs("-I \"" + Path.Combine(Dest, @"setup\obs_setup.py") + "\" --root \"" + Dest + "\""), true);
         if (code != 0) throw new Exception("La configuration d'OBS a échoué (code " + code + ").");
     }
 
@@ -255,6 +281,67 @@ class Installer
         File.WriteAllText(Path.Combine(desk, "BL Studio (panneau).url"), "[InternetShortcut]\r\nURL=http://localhost:3939/\r\n", Encoding.ASCII);
         OnOk("« BL Studio » et « BL Studio (panneau) » ajoutés au bureau");
     }
+
+    // ---------- mode vérification ----------
+    void Verify()
+    {
+        OnStep("1/4  Logiciels présents", 10);
+        OnLog((Which("winget") != null ? "✓" : "✗") + " winget (installation automatique des logiciels)");
+        OnLog((File.Exists(ObsExe) ? "✓" : "• à installer :") + " OBS Studio");
+        OnLog((Which("node") != null || File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), @"nodejs\node.exe")) ? "✓" : "• à installer :") + " Node.js");
+        python = FindPython();
+        OnLog((python != null ? "✓" : "• à installer :") + " Python" + (python != null ? " (" + python + ")" : ""));
+        OnLog((Which("ffmpeg") != null ? "✓" : "• à installer :") + " ffmpeg");
+        foreach (var d in new[] { "vertical-canvas", "aitum-multistream" })
+            OnLog((Directory.Exists(Path.Combine(PluginDir, d)) ? "✓" : "• à installer :") + " plugin " + d);
+        try { Directory.CreateDirectory(PluginDir); string t = Path.Combine(PluginDir, "_bl_test"); Directory.CreateDirectory(t); Directory.Delete(t); OnOk("Dossier des plugins OBS accessible"); }
+        catch { OnLog("• Le dossier des plugins OBS demandera l'autorisation administrateur"); }
+
+        OnStep("2/4  Téléchargements GitHub", 35);
+        string tag;
+        OnOk("Aitum Vertical : " + Path.GetFileName(LatestAsset("Aitum/obs-vertical-canvas", @"-windows-programdata\.zip$", out tag)) + " (" + tag + ")");
+        OnOk("Aitum Multistream : " + Path.GetFileName(LatestAsset("Aitum/obs-aitum-multistream", @"-windows-programdata\.zip$", out tag)) + " (" + tag + ")");
+        string url = LatestAsset(Repo, @"/bl-studio[^/]*\.zip$", out tag);
+        string zip = Path.Combine(tmp, "bl-studio.zip");
+        Download(url, zip);
+        OnOk("BL Studio " + tag + " téléchargé (" + (new FileInfo(zip).Length / 1048576) + " Mo)");
+
+        OnStep("3/4  Contenu de BL Studio", 60);
+        string dir = Path.Combine(tmp, "BLStudio");
+        Extract(zip, dir, null);
+        foreach (var f in new[] { @"hub\hub.js", @"hub\node_modules\ws\package.json", @"hub\media\bl-media.exe", @"hub\public\app.html", @"setup\obs_setup.py",
+                                  "brotherslife.lua", "widget.html", "logo.png", "version.json", @"transitions\stinger_sunset_16x9.webm" })
+            OnLog((File.Exists(Path.Combine(dir, f)) ? "✓ " : "✗ manquant : ") + f);
+        if (Directory.Exists(Path.Combine(dir, @"hub\data"))) OnLog("✗ hub/data présent dans l'archive (données perso)");
+
+        OnStep("4/4  Configuration d'OBS (dossier d'essai, ton OBS n'est pas touché)", 80);
+        if (python == null) { OnLog("• Python absent : la configuration sera testée après son installation"); return; }
+        string fakeAppData = Path.Combine(tmp, "AppData");
+        Directory.CreateDirectory(fakeAppData);
+        int code = Exec(python, PyArgs("-I \"" + Path.Combine(dir, @"setup\obs_setup.py") + "\" --root \"" + dir + "\""), true, fakeAppData);
+        if (code != 0) throw new Exception("La configuration d'OBS a échoué (code " + code + ").");
+        foreach (var f in new[] { @"obs-studio\basic\scenes\BL_Studio.json", @"obs-studio\basic\profiles\BL_Studio\basic.ini", @"obs-studio\user.ini",
+                                  @"obs-studio\plugin_config\obs-websocket\config.json", @"obs-studio\plugin_config\vertical-canvas\config.json" })
+            OnLog((File.Exists(Path.Combine(fakeAppData, f)) ? "✓ " : "✗ manquant : ") + f);
+        OnOk("Tout est prêt : relance sans --verifier pour installer");
+    }
+
+    // python : lanceur « py », sinon un python.exe réel (l'alias du Microsoft Store dans WindowsApps ne compte pas)
+    static string FindPython()
+    {
+        if (Which("py") != null) return "py";
+        foreach (string dir in (Environment.GetEnvironmentVariable("Path") ?? "").Split(';'))
+        {
+            try
+            {
+                string p = Path.Combine(dir.Trim(), "python.exe");
+                if (dir.Trim().Length > 0 && File.Exists(p) && p.IndexOf("WindowsApps", StringComparison.OrdinalIgnoreCase) < 0) return p;
+            }
+            catch { }
+        }
+        return null;
+    }
+    string PyArgs(string args) { return python == "py" ? "-3 " + args : args; }
 
     // ---------- outils ----------
     static WebClient Client()
@@ -284,7 +371,7 @@ class Installer
     }
 
     // décompresse en écrasant, sauf les fichiers que « skip » veut garder
-    static void Extract(string zip, string dest, Func<string, bool> skip)
+    public static void Extract(string zip, string dest, Func<string, bool> skip)
     {
         using (var z = ZipFile.OpenRead(zip))
             foreach (var e in z.Entries)
@@ -298,7 +385,8 @@ class Installer
             }
     }
 
-    int Exec(string file, string args, bool showOutput)
+    int Exec(string file, string args, bool showOutput) { return Exec(file, args, showOutput, null); }
+    int Exec(string file, string args, bool showOutput, string appData)
     {
         var psi = new ProcessStartInfo(Which(file) ?? file, args)
         {
@@ -307,6 +395,7 @@ class Installer
             StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8,
         };
         psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
+        if (appData != null) psi.EnvironmentVariables["APPDATA"] = appData;
         using (var p = Process.Start(psi))
         {
             p.OutputDataReceived += (s, e) => { if (showOutput && !string.IsNullOrWhiteSpace(e.Data)) OnLog(e.Data); };

@@ -18,3 +18,5 @@ hub/media/*.exe
 # Sons et images ajoutés par la chaîne (soundboard, alertes)
 sons/
 medias/
+hub/media/*.old
+hub/media/*.new

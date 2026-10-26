@@ -40,12 +40,14 @@ if (-not (Has "winget")) {
 Step "Logiciels nécessaires"
 if (Test-Path $ObsExe) { Ok "OBS Studio déjà installé" } else { Winget-Install "OBSProject.OBSStudio" "OBS Studio" }
 if ((Has "node") -or (Test-Path "$env:ProgramFiles\nodejs\node.exe")) { Ok "Node.js déjà installé" } else { Winget-Install "OpenJS.NodeJS.LTS" "Node.js" }
-if (Has "py") { Ok "Python déjà installé" } else { Winget-Install "Python.Python.3.12" "Python" }
+function Find-Python { if (Has "py") { return @("py", "-3") }; $p = Get-Command python -ErrorAction SilentlyContinue | Where-Object { $_.Source -notlike "*WindowsApps*" } | Select-Object -First 1; if ($p) { return @($p.Source) }; return $null }
+$Py = Find-Python
+if ($Py) { Ok "Python déjà installé" } else { Winget-Install "Python.Python.3.12" "Python"; $Py = Find-Python }
 if (Has "ffmpeg") { Ok "ffmpeg déjà installé" } else { Winget-Install "Gyan.FFmpeg" "ffmpeg" }
 if (-not (Test-Path $ObsExe)) { throw "OBS Studio n'a pas pu être installé." }
-if (-not (Has "py")) { throw "Python n'a pas pu être installé." }
+if (-not $Py) { throw "Python n'a pas pu être installé." }
 Write-Host "    Module Pillow pour Python (génération des transitions)…"
-& py -3 -m pip install --user --quiet --disable-pip-version-check pillow 2>$null | Out-Null
+& $Py[0] @($Py | Select-Object -Skip 1) -m pip install --user --quiet --disable-pip-version-check pillow 2>$null | Out-Null
 Ok "Logiciels prêts"
 
 # ---------- 2. OBS doit être fermé ----------
@@ -61,11 +63,11 @@ if ($obs) {
 
 # ---------- 3. Plugins Aitum (canevas vertical TikTok + multistream) ----------
 Step "Plugins OBS Aitum Vertical et Aitum Multistream"
-$userPlugins = Join-Path $env:APPDATA "obs-studio\plugins"
+# OBS (Windows) charge les plugins tiers depuis C:\ProgramData\obs-studio\plugins
+$userPlugins = Join-Path $env:ProgramData "obs-studio\plugins"
 New-Item -ItemType Directory -Force $userPlugins | Out-Null
 foreach ($p in @(@{ repo = "Aitum/obs-vertical-canvas"; dir = "vertical-canvas" }, @{ repo = "Aitum/obs-aitum-multistream"; dir = "aitum-multistream" })) {
-  $global = Join-Path $env:ProgramData "obs-studio\plugins\$($p.dir)"
-  if (Test-Path $global) { Ok "$($p.dir) déjà installé"; continue }
+  if (Test-Path (Join-Path $userPlugins $p.dir)) { Ok "$($p.dir) déjà installé"; continue }
   $a = Latest-Asset $p.repo "*windows-programdata.zip"
   $zip = Join-Path $Tmp $a.name
   Invoke-WebRequest $a.url -OutFile $zip -UseBasicParsing
@@ -92,7 +94,7 @@ Ok "BL Studio $($a.tag) installé dans $Dest"
 
 # ---------- 5. Configuration d'OBS ----------
 Step "Configuration d'OBS (scènes, dock BL Studio, WebSocket, sorties TikTok et YouTube)"
-& py -3 -I (Join-Path $Dest "setup\obs_setup.py") --root $Dest
+& $Py[0] @($Py | Select-Object -Skip 1) -I (Join-Path $Dest "setup\obs_setup.py") --root $Dest
 if ($LASTEXITCODE -ne 0) { throw "La configuration d'OBS a échoué." }
 
 # ---------- 6. Raccourcis ----------

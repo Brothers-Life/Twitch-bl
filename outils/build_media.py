@@ -15,6 +15,19 @@ if facades:
 else:
     refs.append(os.path.join(FW, "System.Runtime.dll"))
 out = os.path.join(ROOT, "hub", "media", "bl-media.exe")
-cmd = [os.path.join(FW, "csc.exe"), "-nologo", "-target:exe", "-platform:x64", "-codepage:65001", "-optimize", "-out:" + out]
+new, old = out + ".new", out + ".old"
+cmd = [os.path.join(FW, "csc.exe"), "-nologo", "-target:exe", "-platform:x64", "-codepage:65001", "-optimize", "-out:" + new]
 cmd += ["-r:" + r for r in refs] + [os.path.join(ROOT, "hub", "media", "bl-media.cs")]
-sys.exit(subprocess.run(cmd).returncode)
+code = subprocess.run(cmd).returncode
+if code:
+    sys.exit(code)
+# le Hub peut être en train d'utiliser bl-media.exe : Windows interdit de l'écraser mais permet de le renommer
+for f in (old,):
+    try: os.remove(f)
+    except OSError: pass
+if os.path.exists(out):
+    os.replace(out, old)
+os.replace(new, out)
+try: os.remove(old)
+except OSError: pass        # encore utilisé : supprimé à la prochaine compilation
+
