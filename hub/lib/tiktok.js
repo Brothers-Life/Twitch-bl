@@ -49,9 +49,31 @@ class TikTok {
       this.setStatus("on", `Connecté au live de @${user}`);
     } catch (e) {
       const offline = /offline|not live|isn't online|not online|UserOffline|Room ID/i.test(String(e?.message || e));
-      this.setStatus("off", offline ? `@${user} n'est pas en live (nouvel essai dans 1 min)` : `Erreur : ${String(e?.message || e).slice(0, 120)}`);
+      // TikTok répond pareil pour « pas en live » et « compte inexistant » : on vérifie le profil (pseudo changé ?)
+      const exists = offline ? await this.profileExists(user) : true;
+      this.setStatus("off", !exists ? `Pseudo TikTok @${user} introuvable : vérifie-le dans Connexions (as-tu changé de @ ?)`
+        : offline ? `@${user} n'est pas en live (nouvel essai dans 1 min)` : `Erreur : ${String(e?.message || e).slice(0, 120)}`);
       this.scheduleRetry();
     }
+  }
+
+  // profil TikTok public : statusCode 10221 = compte inexistant (vérifié une fois par pseudo et par heure)
+  profileExists(user) {
+    if (this.profileCheck?.user === user && Date.now() - this.profileCheck.at < 3600000) return Promise.resolve(this.profileCheck.ok);
+    return new Promise(resolve => {
+      const req = require("https").get(`https://www.tiktok.com/@${encodeURIComponent(user)}`, { headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/130 Safari/537.36" } }, res => {
+        let html = "";
+        res.setEncoding("utf8");
+        res.on("data", c => { if (html.length < 600000) html += c; });
+        res.on("end", () => {
+          const ok = !/"statusCode":10221/.test(html);
+          this.profileCheck = { user, ok, at: Date.now() };
+          resolve(ok);
+        });
+      });
+      req.on("error", () => resolve(true));
+      req.setTimeout(10000, () => { req.destroy(); resolve(true); });
+    });
   }
 
   scheduleRetry() {
