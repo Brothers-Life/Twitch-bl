@@ -96,6 +96,9 @@
   #updBanner { position: fixed; right: 16px; bottom: 16px; z-index: 50; width: 300px; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--acc);
     box-shadow: 0 10px 30px rgba(0,0,0,.45); cursor: pointer; }
   #updBanner b { display: block; margin-bottom: 2px; }
+  .media { display: flex; align-items: center; gap: 4px; }
+  .media select { min-width: 110px; max-width: 160px; }
+  .media label.btn { margin: 0; white-space: nowrap; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 
   /* --- configurateur OBS --- */
@@ -751,9 +754,10 @@
       <div class="row"><label>Lire les messages (voix)</label><input type="checkbox" id="aTts"> <span class="hint">si OBS le permet</span></div>
     </div>
     <h3>Par type d'alerte</h3>
-    <div class="card" style="overflow-x:auto"><table style="min-width:980px"><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th>Son</th><th>Image</th><th>Animation</th><th>Durée</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
+    <div class="card" style="overflow-x:auto"><table style="min-width:1240px"><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th>Son</th><th>Image</th><th>Animation</th><th>Durée</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
     <div class="row"><button class="btn primary" id="saveAlerts">Enregistrer</button></div>
-    <p class="hint">Sons et images : ajoute-les dans l'onglet Sons (bibliothèque). Une durée à 0 reprend la durée générale.</p>
+    <p class="hint">Son et image : choisis dans la liste ou clique sur « Importer » pour prendre un fichier de ton PC (enregistré tout seul). ▶ pour écouter.
+      Une durée à 0 reprend la durée générale.</p>
   </section>
 
   <!-- ======== BOT ======== -->
@@ -998,19 +1002,58 @@ async function renderAlerts(a) {
   const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === (cur || "") ? "selected" : ""}>${esc(l)}</option>`;
   $("aTypes").innerHTML = Object.entries(a.types).map(([k, t]) => `<tr data-k="${k}"><td><input type="checkbox" class="on" ${t.on ? "checked" : ""}></td>
     <td>${ALABEL[k] || k}</td><td><input type="number" class="min" value="${t.min}"></td><td><input type="text" class="text" value="${esc(t.text)}"></td>
-    <td><select class="snd">${opt("", "Carillon", t.sound)}${opt("aucun", "Aucun", t.sound)}${lib.sounds.map(x => opt(x.file, x.name, t.sound)).join("")}</select></td>
-    <td><select class="img">${opt("", "Par défaut", t.image)}${lib.images.map(x => opt(x.file, x.name, t.image)).join("")}</select></td>
+    <td><div class="media"><select class="snd">${opt("", "Carillon", t.sound)}${opt("aucun", "Aucun", t.sound)}${lib.sounds.map(x => opt(x.file, x.name, t.sound)).join("")}</select>
+      <button class="btn small play" title="Écouter">▶</button>
+      <label class="btn small" title="Importer un son (MP3, WAV, OGG)">Importer<input type="file" class="upsnd" accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg" hidden></label></div></td>
+    <td><div class="media"><select class="img">${opt("", "Par défaut", t.image)}${lib.images.map(x => opt(x.file, x.name, t.image)).join("")}</select>
+      <label class="btn small" title="Importer une image ou un GIF">Importer<input type="file" class="upimg" accept="image/png,image/jpeg,image/gif,image/webp" hidden></label></div></td>
     <td><select class="anim">${opt("", "Celle de la DA", t.anim)}${Object.entries(BL_ALERT_ANIMS).map(([v, l]) => opt(v, l, t.anim)).join("")}</select></td>
     <td><input type="number" class="dur" min="0" max="60" value="${t.duration || 0}" title="0 = durée générale"></td>
     <td><button class="btn small test">Tester</button></td></tr>`).join("");
   $("aTypes").querySelectorAll(".test").forEach(b => b.onclick = () => post("/api/test", { type: b.closest("tr").dataset.k }));
+  $("aTypes").querySelectorAll(".play").forEach(b => b.onclick = () => {
+    const tr = b.closest("tr"), v = tr.querySelector(".snd").value;
+    if (v === "aucun") return toast("Aucun son pour cette alerte");
+    if (v) { const au = new Audio(`/sons/${encodeURIComponent(v)}`); au.volume = +$("aVol").value || 0.6; au.play().catch(() => toast("Lecture impossible")); }
+    else chimePreview(tr.dataset.k, +$("aVol").value || 0.6);
+  });
+  // import direct : le fichier rejoint la bibliothèque, est choisi pour cette alerte et tout est enregistré
+  const upload = async (input, kind, cls) => {
+    const f = input.files[0]; if (!f) return;
+    const dataUrl = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(f); });
+    const r = await post("/api/library/upload", { kind, name: f.name.replace(/\.[^.]+$/, ""), dataUrl });
+    if (!r.ok) return toast(r.error || "Fichier refusé");
+    const tr = input.closest("tr"), sel = tr.querySelector(cls);
+    sel.insertAdjacentHTML("beforeend", `<option value="${esc(r.file)}">${esc(f.name.replace(/\.[^.]+$/, ""))}</option>`);
+    sel.value = r.file;
+    await saveAlerts(`« ${f.name} » ajouté à l'alerte ${ALABEL[tr.dataset.k] || tr.dataset.k}`);
+  };
+  $("aTypes").querySelectorAll(".upsnd").forEach(i => i.onchange = () => upload(i, "son", ".snd"));
+  $("aTypes").querySelectorAll(".upimg").forEach(i => i.onchange = () => upload(i, "image", ".img"));
+  $("aTypes").querySelectorAll(".snd, .img, .anim").forEach(el => el.onchange = () => saveAlerts("Alerte mise à jour"));
 }
-$("saveAlerts").onclick = () => {
+// carillon par défaut, pour l'écouter ici (le même que dans l'overlay des alertes)
+let previewCtx;
+function chimePreview(type, volume) {
+  const PITCH = { follow: 660, sub: 784, giftsub: 880, bits: 740, raid: 523, gift: 698, share: 587, superchat: 880, member: 784, donation: 988 };
+  try {
+    previewCtx = previewCtx || new AudioContext();
+    const base = PITCH[type] || 660, t = previewCtx.currentTime;
+    [0, 0.12, 0.24].forEach((d, i) => {
+      const o = previewCtx.createOscillator(), g = previewCtx.createGain();
+      o.type = "triangle"; o.frequency.value = base * [1, 1.25, 1.5][i];
+      g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(volume * 0.4, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.6);
+      o.connect(g).connect(previewCtx.destination); o.start(t + d); o.stop(t + d + 0.7);
+    });
+  } catch {}
+}
+$("saveAlerts").onclick = () => saveAlerts("Alertes enregistrées");
+function saveAlerts(msg) {
   const types = {};
   $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value,
     sound: tr.querySelector(".snd").value, image: tr.querySelector(".img").value, anim: tr.querySelector(".anim").value, duration: +tr.querySelector(".dur").value || 0 });
-  saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, "Alertes enregistrées");
-};
+  return saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, msg);
+}
 
 // ---------- Bot ----------
 function rowCmd(c = { enabled: true, cmd: "!", response: "", cooldown: 10 }) {
