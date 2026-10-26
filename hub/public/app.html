@@ -202,6 +202,8 @@
   .stile.live .badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ko); color: #fff; font-size: 11px; font-weight: 700; }
   .stile.sel .nm { color: var(--acc); }
   .stile .edit { font-size: 11px; color: var(--mute); font-weight: 400; }
+  .stile .del { font-size: 11px; color: var(--mute); font-weight: 400; margin-left: 6px; }
+  .stile .del:hover { color: var(--ko); }
   .pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
   .pads > p, .libgrid > p { grid-column: 1 / -1; }
   .pad { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
@@ -406,8 +408,10 @@
         <div class="row"><label>Nom de la scène</label><input type="text" id="tplName" placeholder="ex : Interview"></div>
         <div class="row"><label>Titre affiché</label><input type="text" id="tplTitle" placeholder="(modèles avec titre)"></div>
         <div class="row"><label>Transition d'entrée</label><select id="tplTrans"></select></div>
+        <label class="row" id="tplVertRow"><input type="checkbox" id="tplVert" checked> Créer aussi la version verticale (TikTok) : « V · nom »</label>
         <div class="row"><span></span><button class="btn primary" id="tplCreate">Créer la scène</button></div>
-        <p class="hint" style="margin:0">La scène réutilise tes sources existantes (fond animé, webcam, capture du jeu, widgets) : elles restent synchronisées partout.</p>
+        <p class="hint" style="margin:0">La scène réutilise tes sources existantes (fond animé, webcam, capture du jeu, widgets) : elles restent synchronisées partout.
+          La version verticale apparaît dans le dock « Vertical » d'Aitum au prochain redémarrage d'OBS.</p>
       </div>
       <h3>Canevas vertical (TikTok)</h3>
       <div class="card">
@@ -1252,10 +1256,11 @@ function renderScenes() {
   $("sceneButtons").innerHTML = scenes.map(n =>
     `<div class="stile ${n === current ? "live" : ""} ${n === selected ? "sel" : ""}" data-s="${esc(n)}" role="button" tabindex="0">
        ${thumbs[n] ? `<img src="${thumbs[n]}" alt="">` : `<div class="th"></div>`}${n === current ? `<span class="badge">En direct</span>` : ""}
-       <div class="nm"><span>${esc(n)}</span><a class="edit" href="#" data-edit="${esc(n)}">Éléments</a></div></div>`).join("");
+       <div class="nm"><span>${esc(n)}</span><a class="edit" href="#" data-edit="${esc(n)}">Éléments</a><a class="del" href="#" data-del="${esc(n)}" title="Supprimer la scène">Supprimer</a></div></div>`).join("");
   $("sceneButtons").querySelectorAll(".stile").forEach(t => {
     t.onclick = async e => {
       if (e.target.dataset.edit !== undefined) { e.preventDefault(); selected = e.target.dataset.edit; renderScenes(); renderItems(); return; }
+      if (e.target.dataset.del !== undefined) { e.preventDefault(); return deleteScene(e.target.dataset.del); }
       selected = t.dataset.s; await call("SetCurrentProgramScene", { sceneName: selected }); renderItems();
     };
     t.onkeydown = e => { if (e.key === "Enter") t.click(); };
@@ -1983,6 +1988,23 @@ const SCENE_TEMPLATES = {
   jeuseul: { label: "Jeu seul", desc: "Le jeu, rien d'autre", items: [["jeu", 0, 0, 1920, 1080]] },
   annonce: { label: "Annonce", desc: "Fond animé et grand titre", title: "ANNONCE", items: [["fond", 0, 0, 1920, 1080], ["logo", 960, 330, 260, 260, 0], ["@titre", 960, 600], ["musique", 960, 930, 700, 130, 0]] },
 };
+// version verticale de chaque modèle : [élément, x, y, largeur, hauteur, alignement, recadrer pour remplir]
+const SCENE_TEMPLATES_V = {
+  attente: [["fondv", 0, 0, 1080, 1920], ["logo", 540, 560, 260, 260, 0], ["@titre", 540, 800], ["@countdown", 540, 1040, 640, 200, 0], ["musique", 540, 1240, 760, 141, 0]],
+  jeucam: [["jeu", 0, 0, 1080, 1920, 5, 1], ["cam", 540, 1880, 960, 540, 8], ["badge", 540, 120, 600, 150, 4], ["musique", 540, 290, 760, 141, 4]],
+  camplein: [["cam", 0, 0, 1080, 1920, 5, 1], ["badge", 540, 120, 600, 150, 4], ["chat", 540, 1300, 860, 520, 4]],
+  interview: [["fondv", 0, 0, 1080, 1920], ["cam", 540, 280, 1000, 562, 4], ["chat", 540, 900, 900, 600, 4], ["musique", 540, 1560, 760, 141, 4]],
+  jeuseul: [["jeu", 0, 0, 1080, 1920, 5, 1]],
+  annonce: [["fondv", 0, 0, 1080, 1920], ["logo", 540, 620, 300, 300, 0], ["@titre", 540, 900], ["musique", 540, 1240, 760, 141, 0]],
+};
+FIND.fondv = /^fond anim.*vertical/i;
+// canevas vertical d'Aitum (obs-websocket 5.7+ : GetCanvasList)
+async function verticalCanvas() {
+  try { return (await call("GetCanvasList")).canvases.find(c => !c.canvasFlags?.MAIN && /vertical/i.test(c.canvasName)) || null; } catch { return null; }
+}
+async function verticalScenes(cv) {
+  try { return (await call("GetSceneList", { canvasUuid: cv.canvasUuid })).scenes; } catch { return []; }
+}
 let tplSel = "attente";
 const tplSvg = t => `<svg viewBox="0 0 192 108">${t.items.map(([k, x, y, w = 600, h = 120, al = 5]) => {
   if (k === "@titre") return `<rect x="56" y="${y / 10 - 5}" width="80" height="10" rx="2" fill="var(--hi)"/>`;
@@ -1991,6 +2013,7 @@ const tplSvg = t => `<svg viewBox="0 0 192 108">${t.items.map(([k, x, y, w = 600
   return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="${big ? 0 : 2}" fill="${big ? "#262a33" : "var(--acc)"}" opacity="${big ? 1 : .85}"/>`;
 }).join("")}</svg>`;
 async function renderTemplates() {
+  verticalCanvas().then(cv => { $("tplVertRow").hidden = !cv; });
   $("tplList").innerHTML = Object.entries(SCENE_TEMPLATES).map(([k, t]) =>
     `<button class="tplcard ${k === tplSel ? "on" : ""}" data-k="${k}">${tplSvg(t)}<b>${esc(t.label)}</b><small>${esc(t.desc)}</small></button>`).join("");
   $("tplList").querySelectorAll(".tplcard").forEach(c => c.onclick = () => { tplSel = c.dataset.k; $("tplTitle").placeholder = SCENE_TEMPLATES[tplSel].title || "(pas de titre dans ce modèle)"; renderTemplates(); });
@@ -2035,10 +2058,69 @@ $("tplCreate").onclick = async () => {
   if (glob) { try { const { sceneItemId } = await call("CreateSceneItem", { sceneName: name, sourceName: glob, sceneItemEnabled: true });
     await call("SetSceneItemLocked", { sceneName: name, sceneItemId, sceneItemLocked: true }); } catch {} }
   if ($("tplTrans").value) await call("SetSceneSceneTransitionOverride", { sceneName: name, transitionName: $("tplTrans").value }).catch(() => {});
+  let vertMsg = "";
+  const cv = $("tplVert").checked ? await verticalCanvas() : null;
+  if (cv) vertMsg = await createVerticalTwin(name, cv, sourceNames);
   $("tplName").value = "";
   await refreshAll();
-  toast(`Scène « ${name} » créée${missing.length ? ` (introuvable : ${missing.join(", ")})` : ""}`);
+  toast(`Scène « ${name} » créée${vertMsg}${missing.length ? ` (introuvable : ${missing.join(", ")})` : ""}`);
 };
+
+// version verticale « V · nom » dans le canevas d'Aitum (les éléments s'ajoutent par l'identifiant de la scène)
+async function createVerticalTwin(name, cv, sourceNames) {
+  const vname = `V · ${name}`;
+  const existing = await verticalScenes(cv);
+  if (existing.some(sc => sc.sceneName === vname)) return ` (« ${vname} » existe déjà)`;
+  const { sceneUuid } = await call("CreateScene", { sceneName: vname, canvasUuid: cv.canvasUuid });
+  const t = SCENE_TEMPLATES[tplSel];
+  for (const [k, x, y, w, h, al = 5, fill = 0] of SCENE_TEMPLATES_V[tplSel] || []) {
+    try {
+      let sceneItemId;
+      if (k === "@titre") {
+        ({ sceneItemId } = await call("CreateInput", { sceneUuid, inputName: `${vname} - Titre`, inputKind: "text_gdiplus_v3",
+          inputSettings: { text: $("tplTitle").value.trim() || t.title || name.toUpperCase(), font: { face: "Impact", size: 110, style: "Regular", flags: 0 },
+            color: abgr((allThemes()[da.theme] || BL_THEMES.sunset).c1), outline: true, outline_size: 8, outline_color: 0xff000000, align: "center" } }));
+        await call("SetSceneItemTransform", { sceneUuid, sceneItemId, sceneItemTransform: { positionX: x, positionY: y, alignment: 0 } });
+        continue;
+      }
+      if (k === "@countdown") {
+        const u = daParams(new URL(`${FILE_BASE}widget.html`));
+        u.searchParams.set("w", "countdown"); u.searchParams.set("min", 5); u.searchParams.set("done", "J'arrive !"); u.searchParams.set("bar", 1);
+        ({ sceneItemId } = await call("CreateInput", { sceneUuid, inputName: `${vname} - Compte à rebours`, inputKind: "browser_source",
+          inputSettings: { url: u.toString(), width: w, height: h, restart_when_active: true } }));
+      } else {
+        const src = sourceNames.find(n => FIND[k].test(n)) || (k === "fondv" ? sourceNames.find(n => FIND.fond.test(n)) : null);
+        if (!src) continue;
+        ({ sceneItemId } = await call("CreateSceneItem", { sceneUuid, sourceName: src, sceneItemEnabled: true }));
+      }
+      await call("SetSceneItemTransform", { sceneUuid, sceneItemId, sceneItemTransform: {
+        positionX: x, positionY: y, alignment: al, boundsType: fill ? "OBS_BOUNDS_SCALE_OUTER" : "OBS_BOUNDS_SCALE_INNER", boundsWidth: w, boundsHeight: h, boundsAlignment: 0 } });
+    } catch {}
+  }
+  // alertes et mini-jeux verticaux par-dessus
+  const vglob = existing.find(sc => /overlays/i.test(sc.sceneName));
+  if (vglob) { try { const { sceneItemId } = await call("CreateSceneItem", { sceneUuid, sourceUuid: vglob.sceneUuid, sceneItemEnabled: true });
+    await call("SetSceneItemLocked", { sceneUuid, sceneItemId, sceneItemLocked: true }); } catch {} }
+  return ` avec sa version verticale « ${vname} » (visible dans le dock Vertical après redémarrage d'OBS)`;
+}
+
+// suppression d'une scène, de sa version verticale et des textes / comptes à rebours créés pour elle
+async function deleteScene(name) {
+  const cv = await verticalCanvas();
+  const twin = cv ? (await verticalScenes(cv)).find(sc => sc.sceneName === `V · ${name}`) : null;
+  if (!confirm(`Supprimer la scène « ${name} »${twin ? ` et sa version verticale « V · ${name} »` : ""} ?\n\nLes sources partagées (webcam, jeu, widgets) restent dans tes autres scènes.`)) return;
+  if (scenes.length <= 1) return toast("Impossible de supprimer la dernière scène");
+  try {
+    if (name === current) await call("SetCurrentProgramScene", { sceneName: scenes.find(n => n !== name && !/^⚡/.test(n)) || scenes.find(n => n !== name) });
+    await call("RemoveScene", { sceneName: name });
+    if (twin) await call("RemoveScene", { sceneUuid: twin.sceneUuid }).catch(() => {});
+    for (const n of [`${name} - Titre`, `${name} - Compte à rebours`, `V · ${name} - Titre`, `V · ${name} - Compte à rebours`])
+      if (inputs.some(i => i.inputName === n)) await call("RemoveInput", { inputName: n }).catch(() => {});
+    if (selected === name) selected = current;
+    await refreshAll();
+    toast(`Scène « ${name} » supprimée`);
+  } catch (e) { toast("Suppression impossible : " + e.message); }
+}
 
 // ---------- Créateur de transitions ----------
 let myTrans = store("bl_mytrans") || [];
