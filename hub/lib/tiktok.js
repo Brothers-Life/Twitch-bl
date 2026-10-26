@@ -21,7 +21,9 @@ class TikTok {
     this.stop();
     const user = (this.cfg.username || "").replace(/^@/, "");
     if (!user) { this.setStatus("off", "Pseudo TikTok non renseigné"); return; }
-    const conn = this.conn = new TikTokLiveConnection(user, { processInitialData: false, enableExtendedGiftInfo: true });
+    // enableExtendedGiftInfo reste à false : la liste détaillée des cadeaux passe par une signature payante (Euler « Business »)
+    // et bloquait toute la connexion ; le nom et les diamants du cadeau sont déjà dans chaque message
+    const conn = this.conn = new TikTokLiveConnection(user, { processInitialData: false, enableExtendedGiftInfo: false });
 
     conn.on(WebcastEvent.CHAT, d => this.hub.emit({ type: "chat", platform: "tiktok", user: name(d.user), message: d.comment ?? d.content ?? "" }));
     conn.on(WebcastEvent.GIFT, d => {
