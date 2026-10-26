@@ -41,13 +41,19 @@ class TikTok {
     conn.on(WebcastEvent.ROOM_USER, d => this.hub.stats.setViewers("tiktok", d.viewerCount ?? d.total ?? 0));
     conn.on(WebcastEvent.STREAM_END, () => { this.setStatus("off", "Live TikTok terminé"); this.scheduleRetry(); });
     conn.on(ControlEvent.DISCONNECTED, () => { if (this.conn === conn) { this.setStatus("off", "Déconnecté"); this.scheduleRetry(); } });
-    conn.on(ControlEvent.ERROR, () => {});
+    conn.on(ControlEvent.ERROR, e => this.status.live === "on" && this.hub.log("tiktok", "erreur", `Erreur de la connexion TikTok : ${String(e?.info || e?.exception?.message || e?.message || JSON.stringify(e)).slice(0, 400)}`));
 
     try {
       this.setStatus("connecting", "Connexion au live…");
       await conn.connect();
       this.setStatus("on", `Connecté au live de @${user}`);
+      this.lastErrorDetail = "";
+      this.hub.log("tiktok", "info", `Salon du live trouvé (room ${conn.roomId || "?"}) : chat, cadeaux et spectateurs arrivent`);
     } catch (e) {
+      const subs = (e?.config?.requestErrs || e?.errors || []).map(x => `   • ${String(x?.message || x).slice(0, 300)}`).join("\n");
+      // détail noté une fois (puis seulement s'il change), pour ne pas remplir le journal toutes les minutes
+      const detail = `Connexion à @${user} impossible : ${e?.constructor?.name || "Erreur"} — ${String(e?.message || e).slice(0, 400)}${subs ? "\n" + subs : ""}`;
+      if (detail !== this.lastErrorDetail) { this.lastErrorDetail = detail; this.hub.log("tiktok", "erreur", detail); }
       const offline = /offline|not live|isn't online|not online|UserOffline|Room ID/i.test(String(e?.message || e));
       // TikTok répond pareil pour « pas en live » et « compte inexistant » : on vérifie le profil (pseudo changé ?)
       const exists = offline ? await this.profileExists(user) : true;

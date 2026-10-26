@@ -15,6 +15,33 @@ const Stats = require("./lib/stats");
 const Bot = require("./lib/bot");
 const Updater = require("./lib/updater");
 const Media = require("./lib/media");
+
+// ---------- Journal : tout ce que le Hub affiche (et les erreurs) part dans BL Studio et dans hub/data/journal.txt ----------
+const LOGS = [];
+const LOG_FILE = path.join(__dirname, "data", "journal.txt");
+function addLog(source, level, text) {
+  const e = { t: Date.now(), source, level, text: String(text).slice(0, 4000) };
+  LOGS.push(e);
+  if (LOGS.length > 600) LOGS.shift();
+  try {
+    if (fs.existsSync(LOG_FILE) && fs.statSync(LOG_FILE).size > 2 * 1048576) fs.renameSync(LOG_FILE, LOG_FILE + ".ancien");
+    fs.appendFileSync(LOG_FILE, `${new Date(e.t).toLocaleString("fr-FR")} [${source}] ${level === "info" ? "" : level.toUpperCase() + " "}${e.text}\n`);
+  } catch {}
+  if (globalThis.blHubInstance) globalThis.blHubInstance.broadcast({ kind: "log", log: e });
+}
+// la source est déduite du début du message (« TikTok … », « Mise à jour : … »)
+const guessSource = t => /^tiktok/i.test(t) ? "tiktok" : /^twitch/i.test(t) ? "twitch" : /^youtube/i.test(t) ? "youtube" : /^streamelements|^dons?\b/i.test(t) ? "dons"
+  : /^mise à jour/i.test(t) ? "maj" : /^plugin|^dock|^musique/i.test(t) ? "systeme" : "hub";
+const rawConsole = { log: console.log.bind(console), warn: console.warn.bind(console), error: console.error.bind(console) };
+for (const lvl of ["log", "warn", "error"]) {
+  console[lvl] = (...args) => {
+    rawConsole[lvl](...args);
+    const text = args.map(a => a instanceof Error ? (a.stack || a.message) : typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ");
+    addLog(guessSource(text), lvl === "log" ? "info" : lvl === "warn" ? "avert" : "erreur", text);
+  };
+}
+process.on("unhandledRejection", e => console.error("Erreur non gérée :", e));
+process.on("uncaughtException", e => console.error("Erreur inattendue :", e));
 const Games = require("./lib/games");
 
 const PORT = 3939;
@@ -125,7 +152,22 @@ class Hub {
     return { twitch: this.twitch.status, tiktok: this.tiktok.status, youtube: this.youtube.status, streamelements: this.se.status };
   }
 
-  broadcastStatus() { this.broadcast({ kind: "status", status: this.status() }); }
+  // chaque changement de statut (connexion, déconnexion, erreur) est noté dans le journal
+  broadcastStatus() {
+    const st = this.status();
+    this.lastStatus = this.lastStatus || {};
+    for (const [k, v] of Object.entries(st)) {
+      const sig = JSON.stringify(v);
+      if (this.lastStatus[k] !== sig) {
+        this.lastStatus[k] = sig;
+        const state = v.live || v.state || [v.chat && `chat ${v.chat}`, v.events && `alertes ${v.events}`].filter(Boolean).join(", ");
+        const lvl = /error|erreur/i.test(sig) ? "erreur" : "info";
+        addLog(k === "streamelements" ? "dons" : k, lvl, `${state}${v.detail ? " — " + v.detail : ""}`);
+      }
+    }
+    this.broadcast({ kind: "status", status: st });
+  }
+  log(source, level, text) { addLog(source, level, text); }
 
   // point d'entrée de tous les événements, quelle que soit la plateforme
   // test : affiché (alerte, chat, soutiens) mais pas compté dans les stats ni les points, et ignoré par le bot
@@ -185,6 +227,7 @@ class Hub {
 }
 
 const hub = new Hub();
+globalThis.blHubInstance = hub;
 
 // ---------- HTTP ----------
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".png": "image/png",
@@ -268,6 +311,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/twitch/callback") return sendFile(res, path.join(PUBLIC, "twitch-callback.html"));
     if (p === "/api/state") return json(res, hub.state());
+    if (p === "/api/logs") return json(res, { logs: LOGS, file: LOG_FILE });
     // motifs des volets d'OBS (aperçus dans l'onglet Transitions)
     if (p === "/api/luma" || p.startsWith("/api/luma/")) {
       const dir = [path.join(process.env.ProgramFiles || "C:\\Program Files", "obs-studio", "core", "obs-transitions", "data", "luma_wipes"),

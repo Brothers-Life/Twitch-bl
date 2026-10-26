@@ -97,6 +97,15 @@
   .media { display: flex; align-items: center; gap: 4px; }
   .media select { min-width: 110px; max-width: 160px; }
   .media label.btn { margin: 0; white-space: nowrap; }
+  .console { height: calc(100vh - 230px); min-height: 320px; overflow: auto; margin: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line);
+    background: #0a0b0d; font: 12px/1.55 Consolas, "Cascadia Mono", monospace; white-space: pre-wrap; word-break: break-word; }
+  .console .l { display: block; }
+  .console .t { color: #6b7280; }
+  .console .s { display: inline-block; min-width: 82px; font-weight: 700; }
+  .console .erreur { color: #ff8d90; } .console .avert { color: #f5c26b; }
+  .console .s-tiktok { color: #fe2c55; } .console .s-twitch { color: #a77bff; } .console .s-youtube { color: #ff5b5b; } .console .s-dons { color: #1ec98b; }
+  .console .s-maj { color: #fae664; } .console .s-hub, .console .s-systeme { color: #8fb3ff; }
+  .light { cursor: pointer; }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 </style>
 </head>
@@ -243,6 +252,19 @@ Non</textarea>
   </section>
 
   <!-- ======== CONNEXIONS ======== -->
+  <section id="tab-logs">
+    <div class="row" style="margin-top:0">
+      <select id="logSrc" style="max-width:220px">
+        <option value="">Tout</option><option value="tiktok">TikTok</option><option value="twitch">Twitch</option><option value="youtube">YouTube</option>
+        <option value="dons">Dons (StreamElements)</option><option value="maj">Mises à jour</option><option value="systeme">Système</option><option value="hub">Hub</option></select>
+      <label style="flex:none"><input type="checkbox" id="logErr"> Erreurs seulement</label>
+      <span class="grow" style="flex:1"></span>
+      <button class="btn small" id="logCopy">Copier</button><button class="btn small" id="logSave">Télécharger</button><button class="btn small" id="logClear">Effacer l'affichage</button>
+    </div>
+    <pre class="console" id="logView"></pre>
+    <p class="hint">Tout est aussi enregistré dans <code id="logFile"></code>. En cas de souci, clique sur « Copier » et envoie le texte.</p>
+  </section>
+
   <section id="tab-conn">
     <div class="cols">
       <div class="card"><h3><span class="tag tw">TWITCH</span> Twitch</h3>
@@ -542,6 +564,51 @@ $("overlayList").innerHTML = [
   `<p>Déjà présents dans tes scènes OBS (dossier « Hub »). Options : style=${Object.keys(BL_STYLES).join("|")}, font=${Object.keys(BL_FONTS).join("|")}, anim=glisse|pop|gta|bandeau.</p>`;
 }).catch(() => {});
 
+// ---------- Journal ----------
+let LOGS = [], logBase = 0;
+const LOG_NAMES = { tiktok: "TikTok", twitch: "Twitch", youtube: "YouTube", dons: "Dons", maj: "Mise à jour", systeme: "Système", hub: "Hub" };
+const logLine = e => `<span class="l ${e.level}"><span class="t">${new Date(e.t).toLocaleTimeString("fr-FR")}</span> <span class="s s-${e.source}">${LOG_NAMES[e.source] || e.source}</span> ${esc(e.text)}</span>`;
+const logShown = e => e.t >= logBase && (!$("logSrc").value || e.source === $("logSrc").value) && (!$("logErr").checked || e.level !== "info");
+function renderLogs() {
+  const v = $("logView"), atEnd = v.scrollTop + v.clientHeight >= v.scrollHeight - 8;
+  v.innerHTML = LOGS.filter(logShown).map(logLine).join("") || `<span class="t">Rien pour l'instant.</span>`;
+  if (atEnd) v.scrollTop = v.scrollHeight;
+}
+function addLogLine(e) {
+  LOGS.push(e); if (LOGS.length > 600) LOGS.shift();
+  if (!document.querySelector("#tab-logs.on") || !logShown(e)) return;
+  const v = $("logView"), atEnd = v.scrollTop + v.clientHeight >= v.scrollHeight - 8;
+  if (v.querySelector(".t:only-child")) v.innerHTML = "";
+  v.insertAdjacentHTML("beforeend", logLine(e));
+  if (atEnd) v.scrollTop = v.scrollHeight;
+}
+async function loadLogs() {
+  try { const r = await (await fetch("/api/logs")).json(); LOGS = r.logs; $("logFile").textContent = r.file; } catch {}
+  renderLogs();
+}
+const logText = () => LOGS.filter(logShown).map(e => `${new Date(e.t).toLocaleString("fr-FR")} [${LOG_NAMES[e.source] || e.source}] ${e.level === "info" ? "" : e.level.toUpperCase() + " "}${e.text}`).join("\n");
+$("logSrc").onchange = $("logErr").onchange = renderLogs;
+$("logClear").onclick = () => { logBase = Date.now(); renderLogs(); };
+$("logCopy").onclick = async () => {
+  try { await navigator.clipboard.writeText(logText()); }
+  catch { const t = document.createElement("textarea"); t.value = logText(); document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); }
+  toast("Journal copié : colle-le dans un message");
+};
+$("logSave").onclick = () => {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([logText()], { type: "text/plain" }));
+  a.download = `bl-studio-journal-${new Date().toISOString().slice(0, 10)}.txt`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+addEventListener("bl-tab", e => { if (e.detail === "logs") loadLogs(); });
+// clic sur un voyant de statut : journal de cette plateforme
+document.addEventListener("click", e => {
+  const l = e.target.closest(".light"); if (!l) return;
+  const txt = l.textContent.toLowerCase();
+  $("logSrc").value = /tiktok/.test(txt) ? "tiktok" : /twitch/.test(txt) ? "twitch" : /youtube/.test(txt) ? "youtube" : /dons/.test(txt) ? "dons" : "";
+  document.querySelector('[data-tab="logs"]')?.click();
+});
+
 // ---------- Mises à jour ----------
 let reloadPlanned = false;
 function renderUpdate(u) {
@@ -593,6 +660,7 @@ function live() {
     if (m.kind === "stats") { S.stats = m.stats; renderStats(m.stats); }
     if (m.kind === "game") renderGame(m.state);
     if (m.kind === "update") renderUpdate(m.update);
+    if (m.kind === "log") addLogLine(m.log);
     if (m.kind === "action") dispatchEvent(new CustomEvent("bl-action", { detail: m }));
   };
   ws.onclose = () => setTimeout(live, 3000);
