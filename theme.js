@@ -97,6 +97,12 @@ window.BL_STINGERS = {
   glitch: ["Glitch", "Tranches décalées, effet numérique"],
   eclat:  ["Éclat", "Deux lames qui se croisent en diagonale"],
   pixels: ["Pixels", "Carreaux qui se remplissent au hasard"],
+  rideau:   ["Rideau", "Deux pans qui se ferment au centre"],
+  losange:  ["Losange", "Losanges qui s'ouvrent depuis le centre"],
+  chevrons: ["Chevrons", "Flèches qui traversent l'écran"],
+  bulles:   ["Bulles", "Cercles qui éclosent partout"],
+  barres:   ["Barres", "Barres horizontales en quinconce"],
+  hexa:     ["Hexagones", "Ruche qui se remplit en vague"],
 };
 
 // Packs : une DA complète en un clic (thème + police + style + fond + transition)

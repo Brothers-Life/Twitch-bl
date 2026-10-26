@@ -254,6 +254,16 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/twitch/callback") return sendFile(res, path.join(PUBLIC, "twitch-callback.html"));
     if (p === "/api/state") return json(res, hub.state());
+    // motifs des volets d'OBS (aperçus dans l'onglet Transitions)
+    if (p === "/api/luma" || p.startsWith("/api/luma/")) {
+      const dir = [path.join(process.env.ProgramFiles || "C:\\Program Files", "obs-studio", "core", "obs-transitions", "data", "luma_wipes"),
+        path.join(process.env.ProgramFiles || "C:\\Program Files", "obs-studio", "data", "obs-plugins", "obs-transitions", "luma_wipes")].find(d => fs.existsSync(d));
+      if (!dir) return json(res, { files: [] });
+      if (p === "/api/luma") return json(res, { files: fs.readdirSync(dir).filter(f => f.endsWith(".png")) });
+      const f = decodeURIComponent(p.slice(10));
+      if (!/^[\w-]+\.png$/.test(f)) return json(res, {}, 400);
+      return sendFile(res, path.join(dir, f));
+    }
     if (p === "/api/music/cover") {
       const m = /^data:([\w/+.-]+);base64,(.+)$/.exec(hub.media.coverData(url.searchParams.get("id")) || "");
       if (!m) { res.writeHead(404); return res.end(); }
@@ -366,7 +376,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 // génère une transition stinger (outils/stinger.py + ffmpeg) : style au choix, couleurs d'un thème ou d'une DA perso
-const STINGER_STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels"];
+const STINGER_STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels", "rideau", "losange", "chevrons", "bulles", "barres", "hexa"];
 // Python : le lanceur « py » est toujours là quand Python vient de winget, « python » pas forcément dans le PATH
 const onPath = exe => (process.env.PATH || "").split(";").some(d => d && fs.existsSync(path.join(d, exe)));
 const PY = onPath("py.exe") ? ["py", ["-3"]] : ["python", []];

@@ -125,7 +125,105 @@ def cover_pixels(d, t, W, H, colors, rnd):
             col = (c2 if (i + j) % 3 else c3) if fresh else bg2
             d.rectangle([i * size, j * size, (i + 1) * size, (j + 1) * size], fill=col + (255,))
 
-STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels"]
+def cover_rideau(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    a, b = ease(t / 0.42), ease((t - 0.56) / 0.4)
+    w = W / 2 * min(a, 1 - b) + 2          # largeur de chaque pan
+    if w <= 2:
+        return
+    e = max(6, W // 150)
+    d.rectangle([0, 0, w, H], fill=bg2 + (255,))
+    d.rectangle([W - w, 0, W, H], fill=bg2 + (255,))
+    d.rectangle([w - e, 0, w, H], fill=c2 + (255,))
+    d.rectangle([w - e * 2.4, 0, w - e * 1.6, H], fill=c1 + (255,))
+    d.rectangle([W - w, 0, W - w + e, H], fill=c3 + (255,))
+    d.rectangle([W - w + e * 1.6, 0, W - w + e * 2.4, H], fill=c1 + (255,))
+
+def cover_losange(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    R = (W + H) / 2 + 10
+    cx, cy = W / 2, H / 2
+    dia = lambda r: [(cx, cy - r), (cx + r, cy), (cx, cy + r), (cx - r, cy)]
+    if t <= 0.5:
+        for color, delay in [(c2, 0.0), (c1, 0.04), (c3, 0.08), (bg2, 0.12)]:
+            r = ease((t - delay) / 0.36) * R
+            if r > 0:
+                d.polygon(dia(r), fill=color + (255,))
+    else:
+        d.rectangle([0, 0, W, H], fill=bg2 + (255,))
+        for color, delay in [(c3, 0.0), (c2, 0.04), (None, 0.08)]:
+            r = ease((t - 0.52 - delay) / 0.36) * R
+            if r > 0:
+                d.polygon(dia(r), fill=(color + (255,)) if color else (0, 0, 0, 0))
+
+def cover_chevrons(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    k = H * 0.38
+    span = W + k * 2
+    for color, din, dout in [(c3, 0.00, 0.12), (c2, 0.05, 0.08), (c1, 0.10, 0.04), (bg2, 0.15, 0.00)]:
+        lead = -k + ease((t - din) / 0.35) * span
+        trail = -k + ease((t - 0.5 - dout) / 0.35) * span
+        if lead > trail:
+            d.polygon([(trail - k, 0), (trail, H / 2), (trail - k, H), (lead - k, H), (lead, H / 2), (lead - k, 0)], fill=color + (255,))
+
+def cover_bulles(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    cell = max(W, H) / 12
+    cols, rows = int(W / cell) + 2, int(H / cell) + 2
+    for j in range(rows):
+        for i in range(cols):
+            r0 = rnd[(j * cols + i) % len(rnd)] * 0.2
+            grow = ease((t - r0) / 0.25)
+            shrink = ease((t - 0.55 - r0) / 0.25)
+            r = cell * 0.74 * grow * (1 - shrink)
+            if r <= 0:
+                continue
+            x, y = i * cell, j * cell
+            d.ellipse([x - r, y - r, x + r, y + r], fill=bg2 + (255,))
+            if grow < 1 or shrink > 0:     # liseré coloré pendant l'animation
+                w = max(2, int(cell * 0.05))
+                d.ellipse([x - r, y - r, x + r, y + r], outline=(c2 if (i + j) % 2 else c3) + (255,), width=w)
+
+def cover_barres(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    n = 9
+    h = H / n
+    e = max(4, W // 200)
+    for i in range(n):
+        side = 1 if i % 2 else -1
+        delay = i * 0.018
+        a = ease((t - delay) / 0.32)
+        b = ease((t - 0.55 - delay) / 0.32)
+        if a <= 0 or b >= 1:
+            continue
+        x0 = (1 - a) * W * side - b * W * side
+        y0, y1 = i * h, (i + 1) * h + 1
+        d.rectangle([x0, y0, x0 + W, y1], fill=bg2 + (255,))
+        edge = x0 + W if side < 0 else x0
+        d.rectangle([edge - e, y0, edge + e, y1], fill=(c2 if i % 3 else c1) + (255,))
+
+def cover_hexa(d, t, W, H, colors, rnd):
+    c1, c2, c3, bg1, bg2 = colors
+    import math
+    r = max(W, H) / 16
+    w, h = math.sqrt(3) * r, 1.5 * r
+    row = 0
+    y = -r
+    while y < H + r:
+        x = -w + (w / 2 if row % 2 else 0)
+        while x < W + w:
+            delay = max(0, x) / W * 0.22 + rnd[(row * 50 + int(x)) % len(rnd)] * 0.03
+            s = ease((t - delay) / 0.2) * (1 - ease((t - 0.55 - delay) / 0.2))
+            if s > 0:
+                rr = r * 1.03 * s
+                pts = [(x + rr * math.cos(math.pi / 3 * k + math.pi / 6), y + rr * math.sin(math.pi / 3 * k + math.pi / 6)) for k in range(6)]
+                fresh = s < 0.999
+                d.polygon(pts, fill=((c2 if row % 2 else c3) if fresh else bg2) + (255,))
+            x += w
+        y += h
+        row += 1
+
+STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels", "rideau", "losange", "chevrons", "bulles", "barres", "hexa"]
 
 def render(name, colors, W, H, style="bandes", text=""):
     c1 = colors[0]

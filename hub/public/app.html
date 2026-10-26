@@ -93,6 +93,8 @@
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 
   /* --- configurateur OBS --- */
+  @keyframes lumaWipe { 0% { filter: grayscale(1) brightness(.5) contrast(40); } 50% { filter: grayscale(1) brightness(1) contrast(40); }
+    85%, 100% { filter: grayscale(1) brightness(25) contrast(40); } }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
   .scene { text-align: left; padding: 8px; }
   .scene.live { border-color: var(--ko); box-shadow: inset 3px 0 0 var(--ko); }
@@ -181,6 +183,25 @@
   .scenechecks { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; }
   .scenechecks label { display: flex; align-items: center; gap: 4px; font-size: 12px; }
   .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
+  .lumas { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .luma { border: 2px solid var(--line); border-radius: 10px; padding: 5px; cursor: pointer; background: var(--panel); text-align: left; }
+  .luma.on { border-color: var(--acc); }
+  .luma .lv { aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; position: relative; background: var(--acc2); }
+  .luma .lv img { width: 100%; height: 100%; object-fit: cover; display: block; filter: grayscale(1) brightness(1) contrast(40); }
+  .luma .lv::after { content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, var(--hi), var(--acc) 55%, var(--acc2)); mix-blend-mode: multiply; pointer-events: none; }
+  .luma:hover .lv img { animation: lumaWipe 1.8s linear infinite; }
+  .luma b { display: block; font-size: 11.5px; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scenetiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+  .stile { position: relative; padding: 0; overflow: hidden; cursor: pointer; text-align: left; color: inherit;
+    border: 2px solid var(--line); border-radius: 12px; background: var(--panel); transition: border-color .15s, transform .15s; }
+  .stile:hover { border-color: color-mix(in srgb, var(--acc) 60%, var(--line)); }
+  .stile img, .stile .th { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; background: #0b0c0f; }
+  .stile .nm { display: flex; align-items: center; gap: 8px; padding: 8px 10px; font-weight: 600; }
+  .stile .nm span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .stile.live { border-color: var(--ko); }
+  .stile.live .badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ko); color: #fff; font-size: 11px; font-weight: 700; }
+  .stile.sel .nm { color: var(--acc); }
+  .stile .edit { font-size: 11px; color: var(--mute); font-weight: 400; }
   .dests { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
   .dest { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
   .dest .dh { display: flex; align-items: center; gap: 8px; }
@@ -200,7 +221,6 @@
   body:not(.obs-on) .needs-obs .obs-note { display: block; }
   body:not(.obs-on) .needs-obs .obs-body { opacity: .35; pointer-events: none; }
   .row > label { flex: 0 0 150px; }
-  #tab-scenes .grid button { min-height: 44px; }
 
   /* ===== BL Studio v2 : coque (barre latérale + barre du haut) aux couleurs de la DA (variables posées par paintStudio) ===== */
   :root { --font-ui: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
@@ -354,7 +374,8 @@
       <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
       <div class="obs-body">
       <h3>Passer en direct</h3>
-      <div class="grid" id="sceneButtons"></div>
+      <p class="hint" style="margin-top:0">Clic sur une vignette : la scène passe en direct. « Éléments » : afficher ou masquer ses éléments ci-dessous sans la mettre en direct.</p>
+      <div class="scenetiles" id="sceneButtons"></div>
       <h3>Éléments de la scène <span id="selScene"></span></h3>
       <div class="card" id="sceneItems"></div>
       <div class="row"><button class="btn" id="restartCd">↻ Relancer les comptes à rebours</button></div>
@@ -581,8 +602,11 @@
       <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
       <div class="obs-body">
       <h3>Style du stinger</h3>
-      <p class="hint" style="margin-top:0">Aux couleurs de ta DA, avec ton logo et le nom de ta chaîne. Un style jamais utilisé est généré la première fois (20 s environ).</p>
+      <p class="hint" style="margin-top:0">Aux couleurs de ta DA, avec ton logo et le nom de ta chaîne. Un style jamais utilisé est généré la première fois (30 s à 2 min).</p>
       <div class="stingers" id="stingers"></div>
+      <h3>Volets OBS</h3>
+      <p class="hint" style="margin-top:0">34 motifs intégrés à OBS, instantanés (rien à générer). Un clic les active ; règle la durée plus bas.</p>
+      <div class="lumas" id="lumas"></div>
       <h3>Créer une transition</h3>
       <div class="card">
         <div class="row"><label>Style</label><select id="trStyle"></select></div>
@@ -1122,7 +1146,7 @@ async function refreshAll() {
   current = sl.currentProgramSceneName;
   if (!scenes.includes(selected)) selected = current;
   inputs = (await call("GetInputList")).inputs;
-  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto(); renderMusic(); renderCounters(); renderTemplates(); renderTransCreator(); renderAudio();
+  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto(); renderMusic(); renderCounters(); renderTemplates(); renderTransCreator(); renderAudio(); renderLumas();
 }
 
 let linkV = store("bl_linkv") ?? true;
@@ -1152,13 +1176,37 @@ function onEvent(type, data) {
 }
 
 // ---------- Onglet Scènes ----------
+const thumbs = {};
 function renderScenes() {
-  $("sceneButtons").innerHTML = scenes.map(s =>
-    `<button class="btn scene ${s === current ? "live" : ""}" data-s="${esc(s)}">${s === current ? "● " : ""}${esc(s)}</button>`).join("");
-  $("sceneButtons").querySelectorAll("button").forEach(b => {
-    b.onclick = async () => { selected = b.dataset.s; await call("SetCurrentProgramScene", { sceneName: selected }); renderItems(); };
+  $("sceneButtons").innerHTML = scenes.map(n =>
+    `<div class="stile ${n === current ? "live" : ""} ${n === selected ? "sel" : ""}" data-s="${esc(n)}" role="button" tabindex="0">
+       ${thumbs[n] ? `<img src="${thumbs[n]}" alt="">` : `<div class="th"></div>`}${n === current ? `<span class="badge">En direct</span>` : ""}
+       <div class="nm"><span>${esc(n)}</span><a class="edit" href="#" data-edit="${esc(n)}">Éléments</a></div></div>`).join("");
+  $("sceneButtons").querySelectorAll(".stile").forEach(t => {
+    t.onclick = async e => {
+      if (e.target.dataset.edit !== undefined) { e.preventDefault(); selected = e.target.dataset.edit; renderScenes(); renderItems(); return; }
+      selected = t.dataset.s; await call("SetCurrentProgramScene", { sceneName: selected }); renderItems();
+    };
+    t.onkeydown = e => { if (e.key === "Enter") t.click(); };
   });
 }
+// vignettes : capture de chaque scène, seulement quand l'onglet Scènes est ouvert
+let thumbBusy = false;
+async function refreshThumbs() {
+  if (thumbBusy || !document.querySelector("#tab-scenes.on") || !ws || ws.readyState !== 1) return;
+  thumbBusy = true;
+  for (const n of scenes) {
+    try {
+      const r = await call("GetSourceScreenshot", { sourceName: n, imageFormat: "jpg", imageWidth: 320, imageCompressionQuality: 60 });
+      thumbs[n] = r.imageData;
+      const img = document.querySelector(`.stile[data-s="${CSS.escape(n)}"] img, .stile[data-s="${CSS.escape(n)}"] .th`);
+      if (img && img.tagName === "IMG") img.src = r.imageData;
+      else if (img) img.outerHTML = `<img src="${r.imageData}" alt="">`;
+    } catch {}
+  }
+  thumbBusy = false;
+}
+setInterval(refreshThumbs, 4000);
 
 async function renderItems() {
   $("selScene").textContent = `« ${selected} »`;
@@ -2134,6 +2182,35 @@ function onMeters(list) {
     const db = peak > 0 ? 20 * Math.log10(peak) : -60;
     el.style.width = `${100 - Math.max(0, Math.min(100, (db + 60) / 60 * 100))}%`;
   }
+}
+
+// ---------- Volets OBS (luma wipes) ----------
+const LUMA_FR = { "barndoor-botleft": "Porte bas gauche", "barndoor-h": "Porte horizontale", "barndoor-topleft": "Porte haut gauche", "barndoor-v": "Porte verticale",
+  "blinds-h": "Stores", "box-botleft": "Boîte bas gauche", "box-botright": "Boîte bas droite", "box-topleft": "Boîte haut gauche", "box-topright": "Boîte haut droite",
+  burst: "Explosion", "checkerboard-small": "Damier", circles: "Cercles", clock: "Horloge", cloud: "Nuage", curtain: "Rideau", fan: "Éventail", fractal: "Fractale",
+  iris: "Iris", "linear-h": "Linéaire horizontal", "linear-topleft": "Diagonale gauche", "linear-topright": "Diagonale droite", "linear-v": "Linéaire vertical",
+  "parallel-zigzag-h": "Zigzags horizontaux", "parallel-zigzag-v": "Zigzags verticaux", sinus9: "Ondes", spiral: "Spirale", square: "Carré", squares: "Carrés",
+  stripes: "Rayures", "strips-h": "Bandes horizontales", "strips-v": "Bandes verticales", watercolor: "Aquarelle", "zigzag-h": "Zigzag horizontal", "zigzag-v": "Zigzag vertical" };
+let lumaFiles = null;
+async function renderLumas() {
+  if (!$("lumas")) return;
+  if (!lumaFiles) { try { lumaFiles = (await (await fetch(HUB + "/api/luma")).json()).files; } catch { lumaFiles = []; } }
+  const { transitions, currentSceneTransitionName } = await call("GetSceneTransitionList");
+  const wipe = transitions.find(t => t.transitionKind === "wipe_transition");
+  let curLuma = "";
+  if (wipe && currentSceneTransitionName === wipe.transitionName) {
+    try { curLuma = (await call("GetCurrentSceneTransition")).transitionSettings?.luma_image || ""; } catch {}
+  }
+  $("lumas").innerHTML = !wipe ? `<p class="hint">Aucune transition « Balayage luma » dans OBS.</p>` : lumaFiles.map(f => {
+    const k = f.replace(/\.png$/, "");
+    return `<button class="luma ${curLuma === f ? "on" : ""}" data-f="${esc(f)}" title="${esc(LUMA_FR[k] || k)}"><div class="lv"><img src="${HUB}/api/luma/${encodeURIComponent(f)}" alt="" loading="lazy"></div><b>${esc(LUMA_FR[k] || k)}</b></button>`;
+  }).join("");
+  $("lumas").querySelectorAll(".luma").forEach(b => b.onclick = async () => {
+    await call("SetCurrentSceneTransition", { transitionName: wipe.transitionName });
+    await call("SetCurrentSceneTransitionSettings", { transitionSettings: { luma_image: b.dataset.f, luma_softness: 0.08, luma_invert: false } });
+    toast(`Volet « ${b.title} » activé`);
+    renderTransitions(); renderLumas();
+  });
 }
 
 // ---------- Onglet Transitions ----------

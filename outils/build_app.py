@@ -14,13 +14,16 @@ def between(s, a, b, start=0):
 dash_css = between(dash, "<style>", "</style>")
 conf_css = between(conf, "<style>", "</style>")
 # du configurateur on ne garde que ses composants propres (le reste existe déjà côté dashboard)
-keep = []
+# commentaires retirés (sinon ils collent au sélecteur suivant), animations @keyframes gardées telles quelles
+conf_css = re.sub(r"/\*.*?\*/", "", conf_css, flags=re.S)
+keep = re.findall(r"@keyframes [\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}", conf_css)
+conf_css = re.sub(r"@keyframes [\w-]+\s*\{(?:[^{}]*\{[^{}]*\})*\s*\}", "", conf_css)
 for rule in re.findall(r"[^{}]+\{[^{}]*\}", conf_css):
     sel = rule.split("{")[0].strip()
     if any(sel.startswith(k) for k in (".grid", ".scene", ".theme", ".sw", ".item", ".eye", ".toggles", "details summary", ".stylecard", ".preview", ".wstyle-row",
                                        ".packs", ".pack", ".bgprev", ".stingers", ".stingercard", ".dest", ".onair",
                                        ".np", ".ctrl", ".counters", ".counterbox", ".tpl", ".swrow",
-                                       ".mixer", ".meter", ".chips", ".chip2", ".scenechecks", ".groups")):
+                                       ".mixer", ".meter", ".chips", ".chip2", ".scenechecks", ".groups", ".luma", ".scenetiles", ".stile")):
         keep.append(rule.strip())
 extra_css = """
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
@@ -30,7 +33,6 @@ extra_css = """
   body:not(.obs-on) .needs-obs .obs-note { display: block; }
   body:not(.obs-on) .needs-obs .obs-body { opacity: .35; pointer-events: none; }
   .row > label { flex: 0 0 150px; }
-  #tab-scenes .grid button { min-height: 44px; }
 
   /* ===== BL Studio v2 : coque (barre latérale + barre du haut) aux couleurs de la DA (variables posées par paintStudio) ===== */
   :root { --font-ui: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
