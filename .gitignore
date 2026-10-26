@@ -20,3 +20,4 @@ sons/
 medias/
 hub/media/*.old
 hub/media/*.new
+hub/media/*.old*
