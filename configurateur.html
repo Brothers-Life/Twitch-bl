@@ -502,7 +502,7 @@ async function syncVertical(scene) {
   } catch (e) { $("linkStatus").textContent = `Vertical non changé (${e.message}). Pas de scène « V · ${scene} » ?`; }
 }
 function onEvent(type, data) {
-  if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); applySceneMix(current); }
+  if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); applySceneMix(current); updateTopbar(); }
   if (type === "InputVolumeMeters") onMeters(data.inputs);
   if (type === "InputMuteStateChanged" && document.querySelector("#tab-audio.on")) { clearTimeout(window._auT); window._auT = setTimeout(renderAudio, 300); }
   if (type === "InputVolumeChanged") {
@@ -1024,9 +1024,21 @@ async function stopDest(d) {
   if (d.id === "vertical") return vendor("aitum-vertical-canvas", "stop_streaming");
   return vendor("aitum-multistream", "stop_output", { name: d.name });
 }
+// barre du haut de l'appli : état du live, durée, scène en cours, bouton lancer / terminer
+function updateTopbar() {
+  if (!$("livePill")) return;
+  const live = dests.some(d => d.live), main = dests.find(d => d.id === "main" && d.live);
+  $("livePill").classList.toggle("on", live);
+  $("livePill").textContent = live ? `En direct${main ? " · " + main.info.split(" ")[0] : ""}` : "Hors ligne";
+  $("sceneChip").innerHTML = current ? `Scène <b>${esc(current)}</b>` : "";
+  $("topGo").textContent = live ? "Terminer le live" : "Lancer le live";
+  $("topGo").classList.toggle("stop", live);
+}
+if ($("topGo")) $("topGo").onclick = () => (dests.some(d => d.live) ? $("stopLive") : $("goLive")).click();
 async function renderDests() {
   if (!$("dests")) return;
   dests = await readDests();
+  updateTopbar();
   $("dests").innerHTML = dests.map((d, i) => `<div class="dest ${d.live ? "live" : ""}">
       <div class="dh"><b>${esc(d.label)}</b>${d.live ? '<span class="onair">LIVE</span>' : ""}</div>
       <span class="canvas">Format ${esc(d.canvas)}</span>

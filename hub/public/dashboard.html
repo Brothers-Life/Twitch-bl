@@ -66,6 +66,28 @@
   .toast.on { opacity: 1; }
   .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
   .legend { display: flex; gap: 12px; font-size: 11px; color: var(--mute); }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 10px; }
+  .hero-main { padding: 18px 22px; border: 1px solid var(--line); border-radius: 12px;
+    background: linear-gradient(135deg, color-mix(in srgb, var(--acc) 13%, var(--panel)), var(--panel) 62%); }
+  .hero-main .lbl { color: var(--mute); font-size: 13px; }
+  .hero-main .big { font-size: 64px; font-weight: 700; line-height: 1; margin: 6px 0 16px; font-variant-numeric: tabular-nums; font-stretch: condensed; }
+  .split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,.06); }
+  .split i { display: block; height: 100%; }
+  .splitlegend { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 10px; font-size: 12.5px; color: var(--mute); }
+  .splitlegend b { color: var(--txt); margin-left: 4px; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; vertical-align: 0; }
+  .hero-side { display: grid; grid-template-rows: repeat(3, 1fr); gap: 10px; }
+  .kv { display: flex; align-items: center; justify-content: space-between; padding: 10px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  .kv span { color: var(--mute); }
+  .kv b { font-size: 26px; font-variant-numeric: tabular-nums; }
+  /* grille 4 × 2 : les traits de séparation sont le fond visible entre les cases */
+  .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; margin: 10px 0 0; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .kpi { padding: 12px 16px; background: var(--panel); min-width: 0; }
+  .kpi span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .kpi span { display: block; color: var(--mute); font-size: 12px; }
+  .kpi b { display: block; font-size: 21px; font-variant-numeric: tabular-nums; }
+  .kpi small { color: var(--mute); font-size: 11px; }
+  @media (max-width: 760px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .hero { grid-template-columns: 1fr; } .hero-main .big { font-size: 48px; } .hero-side { grid-template-rows: none; grid-template-columns: repeat(3, minmax(0, 1fr)); } .kv { flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 14px; } .kv b { font-size: 22px; } }
   .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
 </style>
 </head>
@@ -89,7 +111,16 @@
 <main>
   <!-- ======== STATS ======== -->
   <section id="tab-stats" class="on">
-    <div class="cards" id="statCards"></div>
+    <div class="hero">
+      <div class="hero-main"><div class="lbl">Spectateurs en ce moment</div><div class="big" id="hViewers">0</div>
+        <div class="split" id="hSplit"></div><div class="splitlegend" id="hLegend"></div></div>
+      <div class="hero-side">
+        <div class="kv"><span>Pic de la session</span><b id="hPeak">0</b></div>
+        <div class="kv"><span>Messages</span><b id="hMsgs">0</b></div>
+        <div class="kv"><span>Chatteurs uniques</span><b id="hChat">0</b></div>
+      </div>
+    </div>
+    <div class="kpis" id="kpis"></div>
     <h3>Activité (messages par minute et spectateurs)</h3>
     <div class="card">
       <div class="legend"><span><i style="background:var(--tw)"></i>Twitch</span><span><i style="background:var(--tt)"></i>TikTok</span><span><i style="background:var(--yt)"></i>YouTube</span><span><i style="background:#fff"></i>Spectateurs</span></div>
@@ -278,15 +309,18 @@ function renderStats(st) {
   const sum = o => (o.twitch || 0) + (o.tiktok || 0) + (o.youtube || 0);
   const per = o => `TW ${fmt(o.twitch)} · TT ${fmt(o.tiktok)} · YT ${fmt(o.youtube)}`;
   const ev = st.events;
-  const cards = [
-    ["Spectateurs", sum(st.viewers), per(st.viewers)], ["Pic de spectateurs", sum(st.peak), per(st.peak)],
-    ["Messages", sum(st.messages), per(st.messages)], ["Chatteurs uniques", sum(st.chatters), per(st.chatters)],
-    ["Follows", ev.follow, "Twitch + TikTok"], ["Abonnements / membres", ev.sub + ev.member + ev.giftsub, `${ev.giftsub} offerts`],
-    ["Dons", `${fmt(st.donations)} €`, `${ev.donation} don(s)`], ["Super Chats", `${fmt(st.superchats)} €`, `${ev.superchat} Super Chat(s)`],
+  const v = st.viewers, tot = sum(v), PL = [["twitch", "Twitch", "tw"], ["tiktok", "TikTok", "tt"], ["youtube", "YouTube", "yt"]];
+  $("hViewers").textContent = fmt(tot);
+  $("hSplit").innerHTML = tot ? PL.map(([k, , c]) => `<i style="width:${(v[k] || 0) / tot * 100}%;background:var(--${c})"></i>`).join("") : "";
+  $("hLegend").innerHTML = PL.map(([k, l, c]) => `<span><i class="dot" style="background:var(--${c})"></i>${l}<b>${fmt(v[k])}</b></span>`).join("");
+  $("hPeak").textContent = fmt(sum(st.peak)); $("hMsgs").textContent = fmt(sum(st.messages)); $("hChat").textContent = fmt(sum(st.chatters));
+  const kpis = [
+    ["Follows", ev.follow, `${fmt(st.allTime.follow || 0)} au total`], ["Abonnés et membres", ev.sub + ev.member + ev.giftsub, `${ev.giftsub} offerts`],
+    ["Dons", `${fmt(st.donations)} €`, `${ev.donation} don(s)`], ["Super Chats", `${fmt(st.superchats)} €`, `${ev.superchat} reçu(s)`],
     ["Bits", st.bits, `${ev.bits} cheer(s)`], ["Diamants TikTok", st.diamonds, `${ev.gift} cadeau(x)`],
-    ["Likes TikTok", st.likes, `${ev.share} partage(s)`], ["Raids", ev.raid, `Total follows : ${fmt(st.allTime.follow || 0)}`],
+    ["Likes TikTok", st.likes, `${ev.share} partage(s)`], ["Raids", ev.raid, ""],
   ];
-  $("statCards").innerHTML = cards.map(([k, v, s]) => `<div class="card stat"><div class="k">${k}</div><div class="v">${typeof v === "number" ? fmt(v) : v}</div><div class="s">${s}</div></div>`).join("");
+  $("kpis").innerHTML = kpis.map(([k, val, sub]) => `<div class="kpi"><span>${k}</span><b>${typeof val === "number" ? fmt(val) : val}</b><small>${sub}</small></div>`).join("");
   $("topChat").innerHTML = st.topChatters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
   $("topSup").innerHTML = st.topSupporters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value} €</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
   $("recent").innerHTML = st.recent.map(r => `<li>${tag(r.platform)} ${esc(r.user)} <span class="hint">${EVN[r.type] || r.type}${r.gift ? ` · ${esc(r.gift)}` : ""}${r.amount ? ` · ${r.amount}` : ""}</span><span class="val">${new Date(r.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
@@ -300,7 +334,7 @@ function drawChart(st) {
   const maxMsg = Math.max(5, ...pts.map(p => (p.twitch || 0) + (p.tiktok || 0) + (p.youtube || 0)));
   const maxV = Math.max(5, ...pts.map(p => p.viewers || 0));
   const bw = W / 60;
-  ctx.strokeStyle = "#2a221d"; ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(255,255,255,.06)"; ctx.lineWidth = 1;
   for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
   pts.forEach((p, i) => {
     let y = H;

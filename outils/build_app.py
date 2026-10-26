@@ -32,80 +32,111 @@ extra_css = """
   .row > label { flex: 0 0 150px; }
   #tab-scenes .grid button { min-height: 44px; }
 
-  /* ===== Refonte BL Studio : l'appli prend les couleurs de la DA choisie (variables posées par paintStudio) ===== */
+  /* ===== BL Studio v2 : coque (barre latérale + barre du haut) aux couleurs de la DA (variables posées par paintStudio) ===== */
   :root { --font-ui: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
     --hi: #fae664; --acc: #de9425; --acc2: #cc4308; --tb1: #1a0b06; --tb2: #070302; --on-acc: #1a0f05;
-    --bg: color-mix(in srgb, var(--tb2) 55%, #15161a);
-    --panel: color-mix(in srgb, var(--tb1) 35%, #1d1f24);
-    --panel2: color-mix(in srgb, var(--tb1) 30%, #272a31);
-    --line: color-mix(in srgb, var(--acc) 16%, #2f323a);
-    --field: color-mix(in srgb, var(--tb2) 60%, #0e0f12);
-    --txt: #eef0f3; --mute: #9aa0ab; }
-  html, body { font: 13px/1.45 var(--font-ui); background: var(--bg); }
-  header { position: sticky; top: 0; height: 54px; padding: 0 16px; gap: 12px; flex-wrap: nowrap; background: var(--bg); border-bottom: 0; }
-  header::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
-    background: linear-gradient(90deg, var(--acc) 0 62%, var(--acc2) 62% 86%, var(--hi) 86%); }
-  header img { width: 32px; height: 32px; border-radius: 8px; }
-  header b { font-size: 18px; font-weight: 700; font-stretch: condensed; letter-spacing: .01em; }
-  .light { background: var(--panel); }
-  .shell { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: calc(100vh - 54px); }
-  nav { position: sticky; top: 54px; height: calc(100vh - 54px); display: flex; flex-direction: column; gap: 1px;
-    padding: 10px 12px 20px 10px; border: 0; border-right: 1px solid var(--line); overflow: hidden auto;
-    background: color-mix(in srgb, var(--bg) 82%, #000); }
-  nav .grp { align-self: stretch; padding: 14px 10px 5px; font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--mute); }
-  nav .grp:first-child { padding-top: 4px; }
+    --bg: color-mix(in srgb, var(--tb2) 50%, #141519);
+    --panel: color-mix(in srgb, var(--tb1) 28%, #1c1e23);
+    --panel2: color-mix(in srgb, var(--tb1) 24%, #25282f);
+    --line: color-mix(in srgb, var(--acc) 10%, #2c2f36);
+    --field: color-mix(in srgb, var(--tb2) 55%, #0f1013);
+    --txt: #eceef2; --mute: #959ba6; --side: 236px; --top: 60px; }
+  html, body { font: 13px/1.5 var(--font-ui); background: var(--bg); color: var(--txt); }
+  body { min-height: 100vh; }
+  .shell { display: grid; grid-template-columns: var(--side) minmax(0, 1fr); min-height: 100vh; }
+
+  /* barre latérale */
+  .side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; min-width: 0;
+    background: color-mix(in srgb, var(--bg) 72%, #000); border-right: 1px solid var(--line); }
+  .brand { display: flex; align-items: center; gap: 11px; padding: 16px 16px 12px; min-width: 0; }
+  .brand img { width: 38px; height: 38px; border-radius: 10px; object-fit: cover; flex: none; }
+  .brand div { min-width: 0; }
+  .brand b { display: block; font-size: 16px; font-weight: 700; line-height: 1.15; }
+  .brand small { display: block; color: var(--mute); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .side nav { flex: 1; display: flex; flex-direction: column; gap: 1px; padding: 2px 10px 14px; overflow: hidden auto;
+    position: static; height: auto; border: 0; background: none; scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  .side nav::-webkit-scrollbar { width: 6px; }
+  .side nav::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+  .side nav::-webkit-scrollbar-track { background: transparent; }
+  nav .grp { padding: 14px 10px 4px; font-size: 11.5px; font-weight: 600; color: var(--mute); text-transform: none; letter-spacing: 0; align-self: stretch; }
   nav .sep { display: none; }
-  nav button { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border: 0; border-radius: 0; position: relative; isolation: isolate;
-    color: var(--mute); font-size: 13.5px; text-align: left; }
+  nav button { display: flex; align-items: center; gap: 11px; width: 100%; padding: 7px 10px; border: 0; border-radius: 8px; position: relative;
+    background: none; color: var(--mute); font-size: 13.5px; text-align: left; cursor: pointer; white-space: nowrap; }
   nav button svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-  nav button:hover { color: var(--txt); }
-  nav button.on { color: var(--on-acc); font-weight: 700; }
-  nav button.on::before { content: ""; position: absolute; inset: 2px 0; z-index: -1; background: var(--acc); transform: skewX(-12deg); box-shadow: 5px 0 0 var(--acc2); }
-  main { padding: 20px 24px 48px; max-width: 1280px; width: 100%; margin: 0; }
-  h3 { margin: 24px 0 10px; font-size: 15px; font-weight: 700; font-stretch: semi-condensed; text-transform: none; letter-spacing: 0; color: var(--txt); }
+  nav button:hover { color: var(--txt); background: rgba(255,255,255,.045); }
+  nav button.on { color: var(--txt); font-weight: 600; background: color-mix(in srgb, var(--acc) 15%, transparent); }
+  nav button.on svg { color: var(--acc); }
+  nav button.on::before { content: ""; position: absolute; left: -10px; top: 6px; bottom: 6px; width: 3px; border-radius: 0 3px 3px 0;
+    background: linear-gradient(var(--hi), var(--acc) 45%, var(--acc2)); }
+  .sidefoot { border-top: 1px solid var(--line); padding: 10px 14px 12px; display: grid; gap: 9px; }
+  .sidefoot .lights { display: grid; grid-template-columns: 1fr 1fr; gap: 3px 10px; margin: 0; }
+  .light { background: none; padding: 0; border-radius: 0; font-size: 11.5px; color: var(--mute); gap: 6px; white-space: nowrap; overflow: hidden; }
+  .light i { width: 7px; height: 7px; flex: none; }
+  .sidefoot .ver { display: flex; align-items: center; gap: 6px; color: var(--mute); font-size: 11.5px; }
+  .iconbtn { width: 28px; height: 28px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); color: var(--txt); cursor: pointer; flex: none; }
+  .iconbtn:hover { border-color: var(--acc); }
+  .sidefoot .ver .iconbtn:first-of-type { margin-left: auto; }
+
+  /* barre du haut */
+  .mainwrap { min-width: 0; display: flex; flex-direction: column; }
+  .topbar { position: sticky; top: 0; z-index: 6; height: var(--top); display: flex; align-items: center; gap: 14px; padding: 0 26px;
+    background: color-mix(in srgb, var(--bg) 86%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .topbar::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
+    background: linear-gradient(90deg, var(--acc) 0 62%, var(--acc2) 62% 86%, var(--hi) 86%); }
+  .topbar h1 { margin: 0; font-size: 19px; font-weight: 700; font-stretch: semi-condensed; white-space: nowrap; }
+  .topbar .grow { flex: 1; }
+  .scenechip { color: var(--mute); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .scenechip b { color: var(--txt); font-weight: 600; }
+  .livepill { display: inline-flex; align-items: center; gap: 8px; padding: 5px 12px; border-radius: 99px; white-space: nowrap;
+    background: var(--panel); border: 1px solid var(--line); color: var(--mute); font-weight: 600; font-variant-numeric: tabular-nums; }
+  .livepill::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: #5a5f69; }
+  .livepill.on { color: #fff; background: color-mix(in srgb, var(--ko) 20%, var(--panel)); border-color: color-mix(in srgb, var(--ko) 55%, transparent); }
+  .livepill.on::before { background: var(--ko); box-shadow: 0 0 8px var(--ko); animation: blpulse 1.4s ease-in-out infinite; }
+  @keyframes blpulse { 50% { opacity: .3; } }
+  #topGo.stop { background: var(--ko); color: #fff; }
+  main { padding: 22px 26px 48px; max-width: 1320px; width: 100%; margin: 0; }
+
+  /* composants */
+  h3 { margin: 26px 0 10px; font-size: 15px; font-weight: 700; font-stretch: semi-condensed; text-transform: none; letter-spacing: 0; color: var(--txt); }
   h3:first-child, .card > h3:first-child { margin-top: 0; }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; margin-bottom: 10px; }
   .hint { color: var(--mute); }
-  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 14px; transition: border-color .15s, background-color .15s; }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 8px; padding: 7px 14px; transition: border-color .15s, background-color .15s; }
   .btn:hover { border-color: var(--acc); }
-  .btn.primary { background: var(--acc); color: var(--on-acc); border: 0; border-radius: 0; padding: 8px 22px; font-weight: 700;
-    clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%); }
-  .btn.primary:hover { background: color-mix(in srgb, var(--acc) 82%, #fff); }
-  .btn.small { padding: 4px 10px; }
-  .btn.small.primary { padding: 5px 16px; }
-  input[type=text], input[type=password], input[type=number], select, textarea { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+  .btn.primary { background: var(--acc); color: var(--on-acc); border: 1px solid var(--acc); font-weight: 700; }
+  .btn.primary:hover { background: color-mix(in srgb, var(--acc) 84%, #fff); }
+  .btn.small { padding: 4px 10px; border-radius: 7px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { background: var(--field); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
   input[type=checkbox], input[type=range] { accent-color: var(--acc); }
-  :is(button, .btn, input, select, textarea, summary, .theme, .stylecard):focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+  :is(button, .btn, input, select, textarea, summary, .theme, .stylecard, .pack, .tplcard):focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
   .theme { background: var(--panel); border-color: var(--line); }
-  .theme.on, .stylecard.on, .stingercard.on { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc) inset; }
+  .theme.on, .stylecard.on, .stingercard.on, .tplcard.on { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc) inset; }
   .stylecard { background: var(--field); border-color: var(--line); }
-  .stingercard { background: var(--panel); border-color: var(--line); }
   .eye.on { background: color-mix(in srgb, var(--acc) 22%, transparent); border-color: var(--acc); }
   .scene.live { border-color: var(--ko); box-shadow: inset 4px 0 0 var(--ko); }
   .stat .k, th { text-transform: none; letter-spacing: 0; font-size: 12px; }
-  .stat .v { font-size: 30px; font-stretch: condensed; color: var(--txt); }
   .list .val { color: var(--hi); }
   .cm.ev { background: color-mix(in srgb, var(--acc) 10%, transparent); border-left-color: var(--acc); }
-  .toast { background: var(--acc); color: var(--on-acc); border-radius: 0; padding: 10px 26px; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+  .toast { background: var(--panel2); color: var(--txt); border: 1px solid var(--acc); border-radius: 10px; padding: 10px 18px; box-shadow: 0 10px 30px rgba(0,0,0,.45); }
   .tag.bot { background: var(--acc); color: var(--on-acc); }
-  /* dock OBS étroit : la barre latérale devient un rail d'icônes */
+
+  /* dock OBS étroit : rail d'icônes */
   @media (max-width: 760px) {
-    .shell { grid-template-columns: 52px minmax(0, 1fr); }
-    nav { padding: 8px 6px; }
-    nav .grp { display: none; }
-    nav .sep { display: block; width: auto; height: 1px; margin: 6px 6px; background: var(--line); }
-    nav button { justify-content: center; padding: 10px 0; }
-    nav button span { display: none; }
-    nav button.on::before { inset: 3px 4px; box-shadow: 3px 0 0 var(--acc2); }
-    main { padding: 12px 12px 40px; }
+    .shell { grid-template-columns: 56px minmax(0, 1fr); }
+    .brand { justify-content: center; padding: 12px 0; }
+    .brand div, nav .grp, nav button span, .sidefoot .lights, .sidefoot .ver span { display: none; }
+    .side nav { padding: 2px 6px 10px; }
+    nav button { justify-content: center; padding: 9px 0; }
+    nav button.on::before { left: -6px; }
+    nav .sep { display: block; height: 1px; margin: 6px 6px; background: var(--line); }
+    .sidefoot { padding: 8px 6px; justify-items: center; }
+    .sidefoot .ver { flex-direction: column; }
+    .sidefoot .ver .iconbtn:first-of-type { margin-left: 0; }
+    .topbar { padding: 0 12px; gap: 8px; }
+    .topbar h1 { font-size: 16px; }
+    .scenechip { display: none; }
+    main { padding: 14px 12px 40px; }
     .row > label { flex-basis: 110px; }
-    header .hint { display: none; }
-    header { position: relative; height: auto; min-height: 54px; padding: 8px 12px 11px; flex-wrap: wrap; }
-    header b { white-space: nowrap; }
-    .lights { flex-basis: 100%; margin-left: 0; }
-    .light { padding: 2px 7px; }
-    nav { top: 0; height: 100vh; }
-    .shell { min-height: 100vh; }
   }
   @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
 """
@@ -136,7 +167,7 @@ ICONS = {
   "musique": '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
   "audio": '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
   "diffusion": '<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>',
-  "stats": '<path d="M5 20V11M11 20V5M17 20v-7M3 20h18"/>',
+  "stats": '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
   "chat": '<path d="M4 5h16v11H9l-5 4z"/>',
   "alerts": '<path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/>',
   "bot": '<rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9.5 13h.01M14.5 13h.01"/>',
@@ -155,15 +186,14 @@ def nb(tab, label, on=False):
             f'<svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[tab]}</svg><span>{label}</span></button>')
 nav = "\n".join([
   "<nav>",
-  '  <span class="grp">Live</span>', nb("scenes", "Scènes", True), nb("diffusion", "Diffusion"), nb("musique", "Musique"), nb("audio", "Audio"), nb("stats", "Stats"), nb("chat", "Chat"),
+  '  <span class="grp">Live</span>', nb("stats", "Tableau de bord", True), nb("scenes", "Scènes"), nb("diffusion", "Diffusion"), nb("musique", "Musique"), nb("audio", "Audio"), nb("chat", "Chat"),
   '  <span class="sep"></span><span class="grp">Communauté</span>', nb("alerts", "Alertes"), nb("bot", "Bot"), nb("games", "Mini-jeux"), nb("board", "Classement"),
   '  <span class="sep"></span><span class="grp">Design</span>', nb("identite", "Identité"), nb("da", "DA & animations"), nb("widgets", "Widgets"), nb("textes", "Textes"), nb("transitions", "Transitions"),
   '  <span class="sep"></span><span class="grp">Réglages</span>', nb("conn", "Connexions"),
   "</nav>"])
 
 # onglet de départ : Scènes (on retire "on" de Stats)
-dash_main = dash_main.replace('<section id="tab-stats" class="on">', '<section id="tab-stats">', 1)
-conf_main = conf_main.replace('<section id="tab-scenes" class="needs-obs">', '<section id="tab-scenes" class="needs-obs on">', 1)
+# onglet de départ : tableau de bord (déjà « on » dans le dashboard)
 
 # ---------- Scripts ----------
 dash_js = between(dash, "<script>", "</script>")
@@ -203,17 +233,29 @@ shared_nav_js = '''
 document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button, main > section").forEach(x => x.classList.remove("on"));
   b.classList.add("on"); document.getElementById("tab-" + b.dataset.tab).classList.add("on");
+  document.getElementById("pageTitle").textContent = b.querySelector("span")?.textContent || "";
+  window.scrollTo(0, 0);
   try { localStorage.setItem("bl_tab", b.dataset.tab); } catch {}
   if (b.dataset.tab === "chat") document.getElementById("chat").scrollTop = 1e9;
 });
 try { const t = localStorage.getItem("bl_tab"); if (t) document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
+// nom de la chaîne et version dans la barre latérale
+fetch("/api/state").then(r => r.json()).then(st => {
+  document.getElementById("brandName").textContent = st.config.brand?.name || "Ma chaîne";
+  document.getElementById("appVer").textContent = "Version " + (st.update?.current || "?");
+}).catch(() => {});
 '''
 
-header = between(dash, "<header>", "</header>").replace(
-    '<div class="lights" id="lights"></div>',
-    '<div class="lights"><span class="light" id="obsLight"><i></i>OBS</span><span id="lights" style="display:contents"></span></div>')
-header = header.replace("<b>BL Hub</b>", "<b>BL Studio</b>")
-header = header.replace('<span class="hint" id="uptime"></span>', '<span class="hint" id="uptime"></span><button class="btn small" title="Recharger" onclick="location.reload()">↻</button>')
+side_top = '''<div class="brand"><img src="/logo.png" alt=""><div><b>BL Studio</b><small id="brandName">Ma chaîne</small></div></div>'''
+side_foot = '''<div class="sidefoot">
+  <div class="lights"><span class="light" id="obsLight"><i></i>OBS</span><span id="lights" style="display:contents"></span></div>
+  <div class="ver"><span id="appVer"></span><span class="hint" id="uptime" hidden></span>
+    <button class="iconbtn" id="updBtn" title="Mise à jour disponible" hidden>⬆</button>
+    <button class="iconbtn" title="Recharger BL Studio" onclick="location.reload()">↻</button></div>
+</div>'''
+topbar = '''<header class="topbar"><h1 id="pageTitle">Tableau de bord</h1><span class="grow"></span>
+  <span class="scenechip" id="sceneChip"></span><span class="livepill" id="livePill">Hors ligne</span>
+  <button class="btn primary" id="topGo">Lancer le live</button></header>'''
 
 app = f'''<!doctype html>
 <html lang="fr">
@@ -227,13 +269,19 @@ app = f'''<!doctype html>
 <style>{css}</style>
 </head>
 <body>
-<header>{header}</header>
 <div class="shell">
+<aside class="side">
+{side_top}
 {nav}
+{side_foot}
+</aside>
+<div class="mainwrap">
+{topbar}
 <main>
 {conf_main}
 {dash_main}
 </main>
+</div>
 </div>
 <div class="toast" id="toast"></div>
 <script>
