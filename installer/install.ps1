@@ -4,7 +4,7 @@
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-$Repo = "Brothers-Life/bl-studio"
+$Repo = "Brothers-Life/Twitch-bl"
 $Dest = Join-Path $env:USERPROFILE "BLStudio"
 $ObsExe = Join-Path $env:ProgramFiles "obs-studio\bin\64bit\obs64.exe"
 $Tmp = Join-Path $env:TEMP ("bl-studio-" + [guid]::NewGuid().ToString("N").Substring(0, 8))

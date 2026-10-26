@@ -27,7 +27,7 @@ const DEFAULT_CONFIG = {
   // appli Twitch de BL Studio (identifiant public, redirection http://localhost:3939/twitch/callback) : rien à créer
   twitch: { channel: "", clientId: "zzli7imha4fcvwbi0k9igiglbkeaw3", token: "" },
   // mises à jour : releases GitHub du dépôt, installées automatiquement hors live
-  updates: { auto: true, repo: "Brothers-Life/bl-studio" },
+  updates: { auto: true, repo: "Brothers-Life/Twitch-bl" },
   tiktok: { username: "" },
   youtube: { channel: "" },
   streamelements: { jwt: "" },

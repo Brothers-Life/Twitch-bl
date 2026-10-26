@@ -5,8 +5,12 @@ Twitch + TikTok (vertical) + YouTube, piloté depuis un panneau intégré à OBS
 
 ## Installer
 
-1. Télécharge **install.ps1** depuis la [dernière version](../../releases/latest).
-2. Clic droit sur le fichier → **Exécuter avec PowerShell**.
+1. Télécharge **BL-Studio-Setup.exe** depuis la [dernière version](../../releases/latest).
+2. Double-clique dessus, puis **Installer**. Si Windows affiche « Windows a protégé votre ordinateur » :
+   **Informations complémentaires → Exécuter quand même** (l'installeur n'est pas signé).
+
+Sans l'exe : télécharge **install.ps1**, clic droit → **Exécuter avec PowerShell**.
+Relancer l'installeur plus tard met BL Studio à jour sans toucher à tes réglages.
 
 L'installeur ajoute ce qui manque (OBS Studio, plugins Aitum Vertical et Multistream, Node.js, Python, ffmpeg),
 installe BL Studio dans `%USERPROFILE%\BLStudio`, configure OBS puis l'ouvre.

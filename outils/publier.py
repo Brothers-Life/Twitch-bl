@@ -45,6 +45,15 @@ with zipfile.ZipFile(out) as z:
         txt = z.read(n).decode("utf-8", "ignore")
         assert not any(s in txt for s in secrets), f"jeton trouvé dans {n}"
 print(f"zip prêt : {out} ({os.path.getsize(out) // 1048576} Mo, {len(names)} fichiers)")
+
+# installeur Windows : compilé avec le csc.exe fourni avec Windows
+FW = os.path.join(os.environ.get("WINDIR", r"C:\Windows"), "Microsoft.NET", "Framework64", "v4.0.30319")
+exe = os.path.join(BUILD, "BL-Studio-Setup.exe")
+subprocess.run([os.path.join(FW, "csc.exe"), "-nologo", "-target:winexe", "-platform:x64", "-codepage:65001", "-optimize",
+                "-win32icon:" + os.path.join(ROOT, "assets", "bl-studio.ico"),
+                "-r:" + os.path.join(FW, "System.IO.Compression.dll"), "-r:" + os.path.join(FW, "System.IO.Compression.FileSystem.dll"),
+                "-r:System.Windows.Forms.dll", "-r:System.Drawing.dll", "-out:" + exe, os.path.join(ROOT, "installer", "Setup.cs")], check=True)
+print(f"installeur prêt : {exe}")
 if LOCAL:
     sys.exit(0)
 
@@ -53,5 +62,5 @@ if run("git", "status", "--porcelain").strip():
     run("git", "commit", "-m", f"BL Studio {version}")
 run("git", "tag", f"v{version}")
 run("git", "push", "origin", "HEAD", "--tags")
-run("gh", "release", "create", f"v{version}", out, os.path.join(ROOT, "installer", "install.ps1"), "--title", f"BL Studio {version}", "--notes", notes)
+run("gh", "release", "create", f"v{version}", exe, out, os.path.join(ROOT, "installer", "install.ps1"), "--title", f"BL Studio {version}", "--notes", notes)
 print(f"Version {version} publiée : les installations BL Studio la récupéreront toutes seules.")
