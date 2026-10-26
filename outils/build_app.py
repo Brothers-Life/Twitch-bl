@@ -305,5 +305,10 @@ app = f'''<!doctype html>
 </body>
 </html>
 '''
+# garde-fou : deux éléments avec le même id = un bouton qui ne répond plus (bug du pseudo TikTok en 1.0.5)
+import collections
+_ids = re.findall(r'id="([^"]+)"', app.split("<body>", 1)[1].split("<script>", 1)[0])
+_dups = [k for k, v in collections.Counter(_ids).items() if v > 1]
+assert not _dups, f"identifiants en double dans l'appli : {_dups}"
 open(ROOT + "hub/public/app.html", "w", encoding="utf-8").write(app)
 print("ok", len(app))

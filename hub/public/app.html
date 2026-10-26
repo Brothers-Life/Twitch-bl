@@ -674,7 +674,7 @@
         <p class="hint" style="margin-top:0">TikTok LIVE Center ou appli TikTok : LIVE → diffuser sur PC. Copie l'URL du serveur et la clé de stream. TikTok change souvent la clé : recolle-la avant chaque live.</p>
         <div class="row"><label>URL du serveur</label><input type="text" id="ttServer" placeholder="rtmp://…" autocomplete="off"></div>
         <div class="row"><label>Clé de stream</label><input type="password" id="ttKey" autocomplete="off" placeholder="colle la clé ici"></div>
-        <div class="row"><span></span><button class="btn primary" id="ttSave">Envoyer à OBS</button></div>
+        <div class="row"><span></span><button class="btn primary" id="ttKeySave">Envoyer à OBS</button></div>
         <p class="hint" id="ttInfo">La clé est envoyée directement à OBS : BL Studio ne la garde pas.</p>
       </div>
       <h3>YouTube et autres plateformes</h3>
@@ -2111,7 +2111,7 @@ setInterval(async () => {
   } catch {}
 }, 5000);
 try { $("ttServer").value = localStorage.getItem("bl_tt_server") || ""; } catch {}
-$("ttSave").onclick = async () => {
+$("ttKeySave").onclick = async () => {
   const server = $("ttServer").value.trim(), key = $("ttKey").value.trim();
   if (!/^rtmps?:\/\//.test(server)) return toast("L'URL du serveur doit commencer par rtmp:// ou rtmps://");
   try {
