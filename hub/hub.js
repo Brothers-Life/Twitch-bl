@@ -4,6 +4,7 @@ const http = require("http");
 const fs = require("fs");
 const path = require("path");
 const { spawn, execFile } = require("child_process");
+const crypto = require("crypto");
 const { WebSocketServer } = require("ws");
 const { load } = require("./lib/store");
 const Twitch = require("./lib/twitch");
@@ -13,6 +14,7 @@ const StreamElements = require("./lib/streamelements");
 const Stats = require("./lib/stats");
 const Bot = require("./lib/bot");
 const Updater = require("./lib/updater");
+const Media = require("./lib/media");
 const Games = require("./lib/games");
 
 const PORT = 3939;
@@ -28,6 +30,10 @@ const DEFAULT_CONFIG = {
   twitch: { channel: "", clientId: "zzli7imha4fcvwbi0k9igiglbkeaw3", token: "" },
   // mises à jour : releases GitHub du dépôt, installées automatiquement hors live
   updates: { auto: true, repo: "Brothers-Life/Twitch-bl" },
+  // musique en cours : source auto (applis de musique d'abord) ou une appli précise (spotify, deezer, youtube, apple, tidal, browser…)
+  music: { source: "auto", showPaused: false },
+  // compteurs affichés par le widget « compteur » (morts, victoires, défis…)
+  counters: { morts: { label: "Morts", value: 0 } },
   tiktok: { username: "" },
   youtube: { channel: "" },
   streamelements: { jwt: "" },
@@ -53,6 +59,7 @@ const DEFAULT_CONFIG = {
       { cmd: "!discord", response: "Rejoins le Discord : discord.gg/ton-serveur", enabled: false, cooldown: 15 },
       { cmd: "!serveur", response: "On joue sur notre serveur RP, viens nous rejoindre !", enabled: true, cooldown: 15 },
       { cmd: "!uptime", response: "Le live dure depuis {uptime}", enabled: true, cooldown: 10 },
+      { cmd: "!musique", response: "En ce moment : {musique}", enabled: true, cooldown: 10 },
       { cmd: "!reseaux", response: "Twitch / TikTok / YouTube : ton_pseudo", enabled: true, cooldown: 15 },
       { cmd: "!perso", response: "Présente ton personnage dans l'onglet Identité de BL Studio", enabled: true, cooldown: 15 },
     ],
@@ -98,6 +105,7 @@ class Hub {
     this.youtube = new YouTube(this);
     this.se = new StreamElements(this);
     this.updater = new Updater(this, ROOT);
+    this.media = new Media(this);
     this.recentChat = [];
     this.nextId = 1;
   }
@@ -154,7 +162,8 @@ class Hub {
 
   state() {
     return { config: this.publicConfig(), status: this.status(), stats: this.stats.snapshot(),
-      leaderboard: this.bot.leaderboard(20), game: this.games.view(), chat: this.recentChat.slice(-100), update: this.updater.state };
+      leaderboard: this.bot.leaderboard(20), game: this.games.view(), chat: this.recentChat.slice(-100), update: this.updater.state,
+      music: this.media.view(), musicSessions: this.media.sessions, musicAvailable: this.media.available };
   }
 
   restart(section) {
@@ -245,6 +254,12 @@ const server = http.createServer(async (req, res) => {
     }
     if (p === "/twitch/callback") return sendFile(res, path.join(PUBLIC, "twitch-callback.html"));
     if (p === "/api/state") return json(res, hub.state());
+    if (p === "/api/music/cover") {
+      const m = /^data:([\w/+.-]+);base64,(.+)$/.exec(hub.media.coverData(url.searchParams.get("id")) || "");
+      if (!m) { res.writeHead(404); return res.end(); }
+      res.writeHead(200, { "Content-Type": m[1], "Cache-Control": "max-age=86400" });
+      return res.end(Buffer.from(m[2], "base64"));
+    }
     // pilote automatique de BL Studio : le jeu (processus dont le nom contient « name ») est-il lancé ?
     if (p === "/api/process") {
       const name = String(url.searchParams.get("name") || "").toLowerCase();
@@ -317,6 +332,22 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/stats/reset") { hub.stats.reset(); return json(res, { ok: true }); }
     if (p === "/api/stinger") return makeStinger(body, res);
     if (p === "/api/update/check") return json(res, await hub.updater.check());
+    if (p === "/api/music") return json(res, { ok: hub.media.command(body.cmd) });
+    if (p === "/api/counter") {
+      const c = hub.config.data.counters;
+      const id = String(body.id || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24);
+      if (!id) return json(res, { error: "compteur invalide" }, 400);
+      if (body.remove) delete c[id];
+      else {
+        c[id] = c[id] || { label: body.label || id, value: 0 };
+        if (body.label) c[id].label = String(body.label).slice(0, 40);
+        if (typeof body.set === "number") c[id].value = body.set;
+        if (typeof body.delta === "number") c[id].value += body.delta;
+      }
+      hub.config.save();
+      hub.broadcast({ kind: "counters", counters: c });
+      return json(res, { ok: true, counters: c });
+    }
     if (p === "/api/update/install") { hub.updater.install(); return json(res, { ok: true }); }
     if (p === "/api/logo") {
       // logo envoyé depuis BL Studio (data URL PNG/JPEG/WebP) → logo.png, utilisé par tous les widgets
@@ -336,12 +367,23 @@ const server = http.createServer(async (req, res) => {
 
 // génère une transition stinger (outils/stinger.py + ffmpeg) : style au choix, couleurs d'un thème ou d'une DA perso
 const STINGER_STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels"];
+// Python : le lanceur « py » est toujours là quand Python vient de winget, « python » pas forcément dans le PATH
+const onPath = exe => (process.env.PATH || "").split(";").some(d => d && fs.existsSync(path.join(d, exe)));
+const PY = onPath("py.exe") ? ["py", ["-3"]] : ["python", []];
 const stingerJobs = new Map();
 function makeStinger(body, res) {
   const style = STINGER_STYLES.includes(body.style) ? body.style : "bandes";
-  const args = ["--style", style, "--text", String(hub.config.data.brand?.name || "").slice(0, 40)];
+  // créateur de transitions : texte libre et logo facultatif
+  const text = typeof body.text === "string" ? body.text.slice(0, 40) : String(hub.config.data.brand?.name || "").slice(0, 40);
+  const args = ["--style", style, "--text", text];
+  if (body.nologo) args.push("--nologo");
   let name;
-  if (body.theme) {
+  if (body.creator) {
+    const colors = ["c1", "c2", "c3", "bg1", "bg2"].map(k => String(body[k] || "").replace("#", ""));
+    if (!colors.every(c => /^[0-9a-f]{6}$/i.test(c))) return json(res, { error: "couleurs invalides" }, 400);
+    name = "perso_" + crypto.createHash("md5").update([colors.join(""), text, body.nologo ? 1 : 0].join("|")).digest("hex").slice(0, 10);
+    args.push("--name", name, "--colors", colors.join(","));
+  } else if (body.theme) {
     if (!/^[a-z0-9]{1,24}$/.test(body.theme)) return json(res, { error: "thème invalide" }, 400);
     name = body.theme; args.push(name);
   } else {
@@ -356,7 +398,7 @@ function makeStinger(body, res) {
   // une seule génération à la fois par fichier : les demandes suivantes attendent la même
   if (!stingerJobs.has(file)) {
     stingerJobs.set(file, new Promise(done => {
-      const py = spawn("python", ["-I", path.join(ROOT, "outils", "stinger.py"), ...args], { windowsHide: true });
+      const py = spawn(PY[0], [...PY[1], "-I", path.join(ROOT, "outils", "stinger.py"), ...args], { windowsHide: true });
       py.on("close", code => { stingerJobs.delete(file); done(code === 0); });
       py.on("error", () => { stingerJobs.delete(file); done(false); });
     }));
@@ -370,7 +412,8 @@ const allowedOrigin = o => !o || o === "null" || o.startsWith("file://") || /^ht
 const wss = new WebSocketServer({ server, path: "/ws", verifyClient: ({ origin }) => allowedOrigin(origin) });
 wss.on("connection", ws => {
   hub.clients.add(ws);
-  ws.send(JSON.stringify({ kind: "hello", game: hub.games.view(), status: hub.status(), chat: hub.recentChat.slice(-30), recent: hub.stats.session.recent.slice(0, 10), update: hub.updater.state }));
+  ws.send(JSON.stringify({ kind: "hello", game: hub.games.view(), status: hub.status(), chat: hub.recentChat.slice(-30), recent: hub.stats.session.recent.slice(0, 10), update: hub.updater.state,
+    music: hub.media.view(), counters: hub.config.data.counters, stats: hub.stats.snapshot(), leaderboard: hub.bot.leaderboard(10) }));
   ws.on("close", () => hub.clients.delete(ws));
   ws.on("error", () => {});
 });
@@ -396,8 +439,11 @@ server.listen(PORT, "127.0.0.1", () => {
   console.log(`BL Hub prêt : http://localhost:${PORT}`);
   hub.startAll();
   hub.updater.start();
+  hub.media.start();
+  // classement des points pour le widget « leaderboard »
+  setInterval(() => hub.broadcast({ kind: "leaderboard", leaderboard: hub.bot.leaderboard(10) }), 30000);
 });
 
 process.on("uncaughtException", e => console.error("Erreur :", e.message));
 process.on("unhandledRejection", e => console.error("Erreur :", e?.message || e));
-for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { hub.config.flush(); hub.bot.points.flush(); process.exit(0); });
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => { hub.media.stop(); hub.config.flush(); hub.bot.points.flush(); process.exit(0); });

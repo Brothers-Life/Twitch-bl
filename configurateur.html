@@ -84,6 +84,49 @@
   .stingercard video { width: 100%; height: 100%; display: block; object-fit: cover; }
   .stingercard .todo { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: var(--mute); text-align: center; padding: 6px; }
   .stingercard .todo[hidden] { display: none; }
+  .np { display: flex; gap: 12px; align-items: center; }
+  .np img, .np .noart { width: 88px; height: 88px; border-radius: 10px; object-fit: cover; flex: none; background: var(--line); }
+  .np .noart { display: grid; place-items: center; font-size: 30px; color: var(--mute); }
+  .np .meta { min-width: 0; flex: 1; }
+  .np .meta b { display: block; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .np .meta span { color: var(--mute); }
+  .np .srcdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+  .np .bar { height: 5px; border-radius: 3px; background: var(--line); margin: 8px 0; overflow: hidden; }
+  .np .bar i { display: block; height: 100%; background: var(--acc); width: 0; transition: width 1s linear; }
+  .ctrl { display: flex; gap: 6px; }
+  .ctrl .btn { min-width: 44px; font-size: 16px; }
+  .counters { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .counterbox { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--panel); }
+  .counterbox .v { font-size: 34px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .counterbox code { font-size: 11px; }
+  .tpl { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 6px 0; }
+  .tplcard { border: 2px solid var(--line); border-radius: 10px; padding: 6px; cursor: pointer; background: var(--panel); text-align: left; }
+  .tplcard.on { border-color: var(--acc); }
+  .tplcard svg { width: 100%; display: block; border-radius: 6px; background: #0c0d10; }
+  .tplcard b { display: block; font-size: 12px; margin-top: 4px; }
+  .tplcard small { color: var(--mute); font-size: 11px; }
+  .swrow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swrow label { display: flex; flex-direction: column; align-items: center; gap: 2px; font-size: 11px; color: var(--mute); }
+  .swrow input[type=color] { width: 44px; height: 32px; border: 0; background: none; padding: 0; cursor: pointer; }
+  .mixers { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 8px; }
+  .mixer { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); }
+  .mixer.muted { opacity: .6; }
+  .mixer .mh { display: flex; align-items: center; gap: 8px; }
+  .mixer .mh b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mixer .mh small { color: var(--mute); font-size: 11px; }
+  .mixer .kind { font-size: 11px; padding: 1px 7px; border-radius: 99px; background: var(--line); color: var(--txt); }
+  .meter { height: 8px; border-radius: 4px; margin: 8px 0 4px; background: linear-gradient(90deg, #2bd46e 0 70%, #e8b730 70% 88%, #e5484d 88%); position: relative; overflow: hidden; }
+  .meter i { position: absolute; inset: 0 0 0 auto; background: var(--field, #0e0f12); transition: width .08s linear; width: 100%; }
+  .mixer .vol { display: flex; align-items: center; gap: 8px; }
+  .mixer .vol input { flex: 1; }
+  .mixer .vol span { width: 64px; text-align: right; font-variant-numeric: tabular-nums; color: var(--mute); font-size: 12px; }
+  .mixer .row > label { flex-basis: 96px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+  .chip2 { font-size: 11px; padding: 2px 8px; border-radius: 99px; background: var(--line); }
+  .chip2 a { color: var(--mute); margin-left: 4px; text-decoration: none; cursor: pointer; }
+  .scenechecks { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 0; }
+  .scenechecks label { display: flex; align-items: center; gap: 4px; font-size: 12px; }
+  .groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; }
   .dests { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
   .dest { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
   .dest .dh { display: flex; align-items: center; gap: 8px; }
@@ -121,6 +164,8 @@
     <button data-tab="textes">Textes</button>
     <button data-tab="transitions">Transitions</button>
     <button data-tab="diffusion">Diffusion</button>
+    <button data-tab="musique">Musique</button>
+    <button data-tab="audio">Audio</button>
   </nav>
   <main>
     <section id="tab-scenes" class="on">
@@ -129,6 +174,15 @@
       <h3>Éléments de la scène <span id="selScene"></span></h3>
       <div class="card" id="sceneItems"></div>
       <div class="row"><button class="btn" id="restartCd">↻ Relancer les comptes à rebours</button></div>
+      <h3>Créer une scène</h3>
+      <div class="card">
+        <div class="tpl" id="tplList"></div>
+        <div class="row"><label>Nom de la scène</label><input type="text" id="tplName" placeholder="ex : Interview"></div>
+        <div class="row"><label>Titre affiché</label><input type="text" id="tplTitle" placeholder="(modèles avec titre)"></div>
+        <div class="row"><label>Transition d'entrée</label><select id="tplTrans"></select></div>
+        <div class="row"><span></span><button class="btn primary" id="tplCreate">Créer la scène</button></div>
+        <p class="hint" style="margin:0">La scène réutilise tes sources existantes (fond animé, webcam, capture du jeu, widgets) : elles restent synchronisées partout.</p>
+      </div>
       <h3>Canevas vertical (TikTok)</h3>
       <div class="card">
         <label class="row" style="margin:0"><input type="checkbox" id="linkV"> Changer aussi la scène verticale (« V · nom de la scène »)</label>
@@ -195,6 +249,8 @@
           <option value="goal">Barre d'objectif</option><option value="camframe">Cadre webcam</option>
           <option value="music">Musique Spotify</option><option value="clock">Horloge</option>
           <option value="badge">Badge serveur</option><option value="countdown">Compte à rebours</option>
+          <option value="counter">Compteur (morts, victoires…)</option><option value="viewers">Spectateurs en direct</option>
+          <option value="uptime">Durée du live</option><option value="leaderboard">Classement des points</option><option value="text">Texte animé</option>
           <option value="hub:alertes">⚡ Alertes (BL Hub)</option><option value="hub:chat">⚡ Chat unifié (BL Hub)</option>
           <option value="hub:minijeux">⚡ Mini-jeux (BL Hub)</option><option value="hub:soutiens">⚡ Derniers soutiens (BL Hub)</option>
         </select></div>
@@ -235,6 +291,53 @@
       <div class="row"><button class="btn" id="idSave">Enregistrer</button><button class="btn primary" id="idApply">Enregistrer et appliquer partout</button></div>
     </section>
 
+    <section id="tab-musique">
+      <h3>Musique en cours</h3>
+      <div class="card">
+        <div class="np" id="npBox"><div class="noart">♪</div><div class="meta"><b>Aucune musique détectée</b><span>Lance Spotify, Deezer, YouTube Music, Apple Music…</span></div></div>
+        <div class="row" style="margin-top:10px"><div class="ctrl">
+          <button class="btn" data-mcmd="prev" title="Précédent">⏮</button><button class="btn primary" data-mcmd="toggle" title="Lecture / pause">⏯</button><button class="btn" data-mcmd="next" title="Suivant">⏭</button></div></div>
+        <div class="row"><label>Source affichée</label><select id="mSource">
+          <option value="auto">Automatique (applis de musique d'abord)</option><option value="spotify">Spotify</option><option value="deezer">Deezer</option>
+          <option value="youtube">YouTube Music</option><option value="apple">Apple Music</option><option value="tidal">Tidal</option>
+          <option value="soundcloud">SoundCloud</option><option value="amazon">Amazon Music</option><option value="browser">Navigateur (YouTube, Deezer web…)</option>
+          <option value="vlc">VLC</option><option value="any">N'importe laquelle</option></select></div>
+        <label class="row"><input type="checkbox" id="mPaused"> Laisser le widget affiché quand la musique est en pause</label>
+        <p class="hint" id="mSessions" style="margin-bottom:0"></p>
+        <p class="hint">Le widget Musique affiche la pochette, la source et la progression. Commande du bot : <code>!musique</code>.</p>
+      </div>
+      <h3>Compteurs</h3>
+      <p class="hint" style="margin-top:0">Morts, victoires, défis… Affiche-les avec le widget « Compteur » ; le bot peut les changer : <code>{compteur:morts+1}</code> dans la réponse d'une commande.</p>
+      <div class="counters" id="counters"></div>
+      <div class="row"><input type="text" id="cNewId" placeholder="identifiant (ex : victoires)" style="max-width:200px"><input type="text" id="cNewLabel" placeholder="libellé (ex : Victoires)" style="max-width:200px"><button class="btn" id="cAdd">+ Ajouter un compteur</button></div>
+    </section>
+
+    <section id="tab-audio">
+      <h3>Table de mixage</h3>
+      <div class="mixers" id="mixers"></div>
+      <h3>Ajouter une source audio</h3>
+      <div class="card">
+        <div class="row"><label>Type</label><select id="auKind">
+          <option value="wasapi_input_capture">Micro / entrée audio</option>
+          <option value="wasapi_output_capture">Sortie audio (casque, enceintes, carte son)</option>
+          <option value="wasapi_process_output_capture">Son d'une application (jeu, Discord, Spotify…)</option></select></div>
+        <div class="row"><label>Nom</label><input type="text" id="auName" placeholder="ex : Discord, Micro 2, Jeu"></div>
+        <div class="row"><label>Présente dans</label><select id="auScope"></select></div>
+        <div class="row"><span></span><button class="btn primary" id="auAdd">Ajouter</button></div>
+        <p class="hint" style="margin:0">Pour une application : ajoute la source, puis choisis l'appli dans sa carte (elle doit être ouverte).</p>
+      </div>
+      <h3>Groupes</h3>
+      <p class="hint" style="margin-top:0">Rassemble des sources (ex : « Jeu » = jeu + Discord) pour les régler d'un seul curseur.</p>
+      <div class="groups" id="auGroups"></div>
+      <div class="row"><input type="text" id="auGroupName" placeholder="nom du groupe" style="max-width:220px"><button class="btn" id="auGroupAdd">+ Créer un groupe</button></div>
+      <h3>Mix par scène</h3>
+      <div class="card">
+        <label class="row" style="margin:0"><input type="checkbox" id="auAuto"> Appliquer automatiquement le mix enregistré quand je change de scène</label>
+        <div class="row"><button class="btn" id="auSnap">Enregistrer le mix actuel pour la scène en direct</button></div>
+        <div class="chips" id="auMixes"></div>
+      </div>
+    </section>
+
     <section id="tab-diffusion">
       <h3>Diffusion multi-plateforme</h3>
       <p class="hint" style="margin-top:0">Twitch part du format 16:9, TikTok du format vertical (scènes « V · … »), YouTube et les autres sorties passent par Aitum Multistream.</p>
@@ -272,6 +375,20 @@
       <h3>Style du stinger</h3>
       <p class="hint" style="margin-top:0">Aux couleurs de ta DA, avec ton logo et le nom de ta chaîne. Un style jamais utilisé est généré la première fois (20 s environ).</p>
       <div class="stingers" id="stingers"></div>
+      <h3>Créer une transition</h3>
+      <div class="card">
+        <div class="row"><label>Style</label><select id="trStyle"></select></div>
+        <div class="row"><label>Couleurs</label><div class="swrow">
+          <label><input type="color" id="trc1">Clair</label><label><input type="color" id="trc2">Principale</label><label><input type="color" id="trc3">Foncée</label>
+          <label><input type="color" id="trbg1">Fond haut</label><label><input type="color" id="trbg2">Fond bas</label></div>
+          <button class="btn small" id="trFromDA">Couleurs de ma DA</button></div>
+        <div class="row"><label>Texte</label><input type="text" id="trText" maxlength="40" placeholder="ex : ON REVIENT, GG, MERCI !"></div>
+        <label class="row"><input type="checkbox" id="trLogo" checked> Afficher mon logo</label>
+        <div class="row"><span></span><button class="btn primary" id="trMake">Créer et utiliser</button></div>
+        <p class="hint" style="margin:0">Génération en 30 s à 2 min selon ton PC. Chaque transition créée rejoint « Mes transitions ».</p>
+      </div>
+      <h3>Mes transitions</h3>
+      <div class="stingers" id="myTrans"></div>
       <h3>Transition active</h3>
       <div class="grid" id="transList"></div>
       <div class="card" style="margin-top:8px">
@@ -329,7 +446,7 @@ function connect() {
   ws.onmessage = e => {
     const { op, d } = JSON.parse(e.data);
     if (op === 0) {
-      const ident = { rpcVersion: 1, eventSubscriptions: 1 | 4 | 8 | 16 | 64 | 128 };
+      const ident = { rpcVersion: 1, eventSubscriptions: 1 | 4 | 8 | 16 | 64 | 128 | 65536 };
       if (d.authentication) ident.authentication = b64sha(b64sha(pwd + d.authentication.salt) + d.authentication.challenge);
       ws.send(JSON.stringify({ op: 1, d: ident }));
     } else if (op === 2) {
@@ -373,7 +490,7 @@ async function refreshAll() {
   current = sl.currentProgramSceneName;
   if (!scenes.includes(selected)) selected = current;
   inputs = (await call("GetInputList")).inputs;
-  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto();
+  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto(); renderMusic(); renderCounters(); renderTemplates(); renderTransCreator(); renderAudio();
 }
 
 let linkV = store("bl_linkv") ?? true;
@@ -385,7 +502,17 @@ async function syncVertical(scene) {
   } catch (e) { $("linkStatus").textContent = `Vertical non changé (${e.message}). Pas de scène « V · ${scene} » ?`; }
 }
 function onEvent(type, data) {
-  if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); }
+  if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); applySceneMix(current); }
+  if (type === "InputVolumeMeters") onMeters(data.inputs);
+  if (type === "InputMuteStateChanged" && document.querySelector("#tab-audio.on")) { clearTimeout(window._auT); window._auT = setTimeout(renderAudio, 300); }
+  if (type === "InputVolumeChanged") {
+    // mise à jour sur place (sans tout redessiner : le curseur reste utilisable pendant qu'on le bouge)
+    const idx = auList.findIndex(a => a.name === data.inputName), card = document.querySelector(`.mixer[data-i="${idx}"]`);
+    if (idx >= 0) auList[idx].db = data.inputVolumeDb;
+    if (card && document.activeElement !== card.querySelector("[data-vol]")) {
+      card.querySelector("[data-vol]").value = Math.max(-60, data.inputVolumeDb); card.querySelector(".vol span").textContent = dbText(data.inputVolumeDb);
+    }
+  }
   if (type === "SceneItemEnableStateChanged") renderItems();
   if (["SceneListChanged", "InputCreated", "InputRemoved", "InputNameChanged", "CurrentSceneCollectionChanged"].includes(type)) refreshAll();
   if (type === "CurrentSceneTransitionChanged") renderTransitions();
@@ -687,16 +814,20 @@ const HUB_PAGES = { "hub:alertes": ["alertes.html", 1000, 400, {}], "hub:chat": 
 const LABELS = { w: "Type", min: "Durée (min)", done: "Texte à la fin", bar: "Barre (1/0)", label: "Libellé", date: "Date (1/0)", title: "Titre",
   sub: "Sous-titre", dot: "Point live (1/0)", logo: "Logo (1/0)", channel: "Pseudo Twitch", max: "Max", fade: "Disparition (s)", msgs: "Messages (séparés par |)",
   tag: "Étiquette", speed: "Vitesse", items: "Réseaux (RÉSEAU:pseudo|…)", every: "Rotation (s)", nom: "Nom", metier: "Métier", info: "Info", titre: "Titre",
-  cur: "Actuel" };
+  cur: "Actuel", cover: "Pochette (1/0)", progress: "Progression (1/0)", source: "Source (1/0)", id: "Identifiant du compteur",
+  detail: "Détail par plateforme (1/0)", n: "Nombre de lignes", text: "Texte", anim: "Animation (glow, type, wave, pulse, none)", size: "Taille" };
 const DEFAULTS = {
   chat: { channel: "", max: 8, fade: 30 }, ticker: { tag: "INFO", msgs: "Bienvenue sur le live|Rejoins le serveur|N'oublie pas le follow", speed: 1 },
   socials: { items: "TWITCH:ton_pseudo|TIKTOK:@ton_pseudo|DISCORD:discord.gg/ton-serveur", every: 5 },
-  perso: { titre: "Personnage", nom: "Pablo Reed", metier: "Concessionnaire", info: "Los Santos" },
-  goal: { label: "Objectif followers", cur: 0, max: 100 }, camframe: { nom: "" }, music: { label: "En écoute" }, clock: { date: 1 },
+  perso: { titre: "Personnage", nom: "Mon perso", metier: "Métier", info: "Ville" },
+  counter: { id: "morts", label: "Morts" }, viewers: { label: "Spectateurs", detail: 1 }, uptime: { label: "En live depuis" },
+  leaderboard: { title: "Top points", n: 5 }, text: { text: "Bienvenue !", anim: "glow", size: 1 },
+  goal: { label: "Objectif followers", cur: 0, max: 100 }, camframe: { nom: "" }, music: { label: "En écoute", cover: 1, progress: 1, source: 1 }, clock: { date: 1 },
   badge: { title: "MA CHAÎNE", sub: "Live", dot: 1, logo: 1 }, countdown: { min: 5, done: "00:00", bar: 1 },
 };
 const SIZES = { chat: [520, 640], ticker: [1920, 70], socials: [620, 120], perso: [560, 150], goal: [600, 130], camframe: [520, 300],
-  music: [700, 130], clock: [300, 110], badge: [560, 140], countdown: [640, 200] };
+  music: [700, 130], clock: [300, 110], badge: [560, 140], countdown: [640, 200],
+  counter: [320, 110], viewers: [460, 120], uptime: [380, 110], leaderboard: [420, 320], text: [900, 140] };
 
 // aperçu servi par le Hub (même origine que l'appli) : file:///…/widget.html?x → /widget.html?x
 const previewUrl = u => "/" + page(u.toString()) + u.search;
@@ -742,13 +873,25 @@ async function renderWidgets() {
   });
 }
 
+// paramètres de la DA courante pour une nouvelle source navigateur
+function daParams(u, isBackground) {
+  const t = allThemes()[da.theme] || BL_THEMES.sunset, custom = da.theme.startsWith("custom:");
+  u.searchParams.set("theme", custom ? "sunset" : da.theme);
+  if (custom) for (const k of COLOR_KEYS) u.searchParams.set(k, t[k].slice(1));
+  if (da.font && da.font !== "impact") u.searchParams.set("font", da.font);
+  if (!isBackground) {
+    u.searchParams.set("style", da.style);
+    if (da.arrondi !== 1) u.searchParams.set("arrondi", da.arrondi);
+    if (da.lueur > 0) u.searchParams.set("lueur", da.lueur);
+  }
+  return u;
+}
 $("addWidget").onclick = async () => {
   const type = $("newType").value;
   const [file, width, height, defaults] = HUB_PAGES[type] || ["widget.html", ...SIZES[type], DEFAULTS[type]];
   const u = new URL(`${FILE_BASE}${file}`);
   if (!HUB_PAGES[type]) u.searchParams.set("w", type);
-  u.searchParams.set("theme", da.theme.startsWith("custom:") ? "sunset" : da.theme);
-  u.searchParams.set("style", da.style);
+  daParams(u);
   for (const [k, v] of Object.entries(defaults)) u.searchParams.set(k, v);
   const label = $("newType").selectedOptions[0].textContent;
   let name = `Widget ${label.replace(/^⚡ /, "").replace(/ \(BL Hub\)$/, "")}`, n = 2;
@@ -994,6 +1137,360 @@ $("ttSave").onclick = async () => {
   } catch (e) { toast("OBS a refusé : " + e.message); }
 };
 setInterval(() => { if (document.body.classList.contains("obs-on") || $("app")?.hidden === false) renderDests().catch(() => {}); }, 4000);
+
+// ---------- Onglet Musique & compteurs ----------
+let musicState = null;
+const fmtTime = t => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+async function renderMusic() {
+  if (!$("npBox")) return;
+  let st;
+  try { st = await (await fetch(HUB + "/api/state")).json(); } catch { return; }
+  const m = st.music;
+  musicState = m;
+  $("mSource").value = st.config.music?.source || "auto";
+  $("mPaused").checked = st.config.music?.showPaused === true;
+  if (!st.musicAvailable) $("mSessions").textContent = "Lecteur de musique absent (hub/media/bl-media.exe) : seul Spotify est lu, par le script OBS.";
+  else $("mSessions").textContent = st.musicSessions?.length
+    ? "Détecté : " + st.musicSessions.map(x => `${x.label} (${x.status === "Playing" ? "lecture" : "pause"})`).join(", ") : "Aucun lecteur détecté.";
+  $("npBox").innerHTML = m
+    ? `${m.cover ? `<img src="${HUB}/api/music/cover?id=${m.cover}" alt="">` : `<div class="noart">♪</div>`}
+       <div class="meta"><span><i class="srcdot" style="background:${m.color}"></i>${esc(m.label)}${m.playing ? "" : " · en pause"}</span><b>${esc(m.title)}</b><span>${esc(m.artist || "")}</span>
+       <div class="bar"><i id="npBar"></i></div><span id="npTime"></span></div>`
+    : `<div class="noart">♪</div><div class="meta"><b>Aucune musique détectée</b><span>Lance Spotify, Deezer, YouTube Music, Apple Music…</span></div>`;
+  tickMusic();
+}
+function tickMusic() {
+  const m = musicState;
+  if (!m || !$("npBar") || !m.duration) return;
+  const pos = Math.min(m.duration, m.position + (m.playing ? (Date.now() - m.at) / 1000 : 0));
+  $("npBar").style.width = `${pos / m.duration * 100}%`;
+  $("npTime").textContent = `${fmtTime(pos)} / ${fmtTime(m.duration)}`;
+}
+setInterval(tickMusic, 1000);
+setInterval(() => { if (document.querySelector("#tab-musique.on")) renderMusic(); }, 4000);
+document.querySelectorAll("[data-mcmd]").forEach(b => b.onclick = async () => {
+  const r = await hubPost("/api/music", { cmd: b.dataset.mcmd });
+  if (!r.ok) toast("Lecteur introuvable");
+  setTimeout(renderMusic, 900);
+});
+$("mSource").onchange = async e => { await hubPost("/api/config", { section: "music", data: { source: e.target.value } }); toast("Source de musique enregistrée"); setTimeout(renderMusic, 1500); };
+$("mPaused").onchange = async e => { await hubPost("/api/config", { section: "music", data: { showPaused: e.target.checked } }); };
+
+async function renderCounters(list) {
+  if (!list) { try { list = (await (await fetch(HUB + "/api/state")).json()).config.counters || {}; } catch { return; } }
+  $("counters").innerHTML = Object.entries(list).map(([id, c]) => `<div class="counterbox">
+      <div class="row" style="margin:0"><b style="flex:1">${esc(c.label)}</b><button class="btn small danger" data-cdel="${esc(id)}" title="Supprimer">✕</button></div>
+      <div class="v">${c.value}</div>
+      <div class="row" style="margin:0"><button class="btn small" data-c="${esc(id)}" data-d="-1">−1</button><button class="btn small primary" data-c="${esc(id)}" data-d="1">+1</button>
+        <button class="btn small" data-creset="${esc(id)}">0</button></div>
+      <code>{compteur:${esc(id)}+1}</code></div>`).join("") || `<p class="hint">Aucun compteur.</p>`;
+  const send = async body => { const r = await hubPost("/api/counter", body); if (r.counters) renderCounters(r.counters); };
+  $("counters").querySelectorAll("[data-c]").forEach(b => b.onclick = () => send({ id: b.dataset.c, delta: +b.dataset.d }));
+  $("counters").querySelectorAll("[data-creset]").forEach(b => b.onclick = () => send({ id: b.dataset.creset, set: 0 }));
+  $("counters").querySelectorAll("[data-cdel]").forEach(b => b.onclick = () => confirm("Supprimer ce compteur ?") && send({ id: b.dataset.cdel, remove: true }));
+}
+$("cAdd").onclick = async () => {
+  const id = $("cNewId").value.trim().toLowerCase().normalize("NFD").replace(/[^a-z0-9_-]+/g, "");
+  if (!id) return toast("Choisis un identifiant (lettres et chiffres)");
+  const r = await hubPost("/api/counter", { id, label: $("cNewLabel").value.trim() || id, set: 0 });
+  $("cNewId").value = $("cNewLabel").value = "";
+  if (r.counters) renderCounters(r.counters);
+};
+
+// ---------- Créateur de scènes ----------
+// chaque élément : source existante (cherchée par nom) ou nouvelle source, position et taille dans le 1920×1080
+const FIND = {
+  fond: /^fond anim/i, jeu: /^capture/i, cam: /^webcam$/i, cadre: /cadre webcam/i, badge: /badge/i, musique: /widget musique/i,
+  chat: /chat unifi/i, soutiens: /derniers soutiens/i, logo: /^logo$/i, horloge: /horloge/i, ticker: /bandeau/i, perso: /perso/i,
+};
+const SCENE_TEMPLATES = {
+  attente: { label: "Écran d'attente", desc: "Fond, logo, titre, compte à rebours, musique", title: "ON ARRIVE",
+    items: [["fond", 0, 0, 1920, 1080], ["logo", 960, 300, 220, 220, 0], ["@titre", 960, 500], ["@countdown", 960, 720, 640, 200, 0], ["musique", 960, 930, 700, 130, 0], ["ticker", 0, 1080, 1920, 70, 9]] },
+  jeucam: { label: "Jeu + webcam", desc: "Jeu plein écran, webcam en bas à droite", items: [["jeu", 0, 0, 1920, 1080], ["cam", 1890, 1050, 480, 270, 10], ["cadre", 1900, 1060, 500, 290, 10],
+    ["badge", 30, 30, 560, 140], ["musique", 30, 1050, 600, 111, 9]] },
+  camplein: { label: "Webcam plein écran", desc: "Webcam, badge et chat", items: [["cam", 0, 0, 1920, 1080], ["cadre", 0, 0, 1920, 1080], ["badge", 30, 30, 480, 120], ["chat", 1890, 140, 480, 640, 6]] },
+  interview: { label: "Discussion", desc: "Grande webcam, chat et soutiens", items: [["fond", 0, 0, 1920, 1080], ["cam", 80, 150, 1220, 686], ["cadre", 70, 140, 1240, 706],
+    ["chat", 1850, 150, 520, 700, 6], ["soutiens", 1850, 1050, 520, 100, 10], ["badge", 80, 30, 480, 120]] },
+  jeuseul: { label: "Jeu seul", desc: "Le jeu, rien d'autre", items: [["jeu", 0, 0, 1920, 1080]] },
+  annonce: { label: "Annonce", desc: "Fond animé et grand titre", title: "ANNONCE", items: [["fond", 0, 0, 1920, 1080], ["logo", 960, 330, 260, 260, 0], ["@titre", 960, 600], ["musique", 960, 930, 700, 130, 0]] },
+};
+let tplSel = "attente";
+const tplSvg = t => `<svg viewBox="0 0 192 108">${t.items.map(([k, x, y, w = 600, h = 120, al = 5]) => {
+  if (k === "@titre") return `<rect x="56" y="${y / 10 - 5}" width="80" height="10" rx="2" fill="var(--hi)"/>`;
+  const W = w / 10, H = h / 10, X = (al & 2 ? x / 10 - W : al & 1 ? x / 10 : x / 10 - (al === 0 ? W / 2 : 0)), Y = (al & 8 ? y / 10 - H : al & 4 ? y / 10 : y / 10 - (al === 0 ? H / 2 : 0));
+  const big = W >= 150;
+  return `<rect x="${X}" y="${Y}" width="${W}" height="${H}" rx="${big ? 0 : 2}" fill="${big ? "#262a33" : "var(--acc)"}" opacity="${big ? 1 : .85}"/>`;
+}).join("")}</svg>`;
+async function renderTemplates() {
+  $("tplList").innerHTML = Object.entries(SCENE_TEMPLATES).map(([k, t]) =>
+    `<button class="tplcard ${k === tplSel ? "on" : ""}" data-k="${k}">${tplSvg(t)}<b>${esc(t.label)}</b><small>${esc(t.desc)}</small></button>`).join("");
+  $("tplList").querySelectorAll(".tplcard").forEach(c => c.onclick = () => { tplSel = c.dataset.k; $("tplTitle").placeholder = SCENE_TEMPLATES[tplSel].title || "(pas de titre dans ce modèle)"; renderTemplates(); });
+  try {
+    const { transitions } = await call("GetSceneTransitionList");
+    $("tplTrans").innerHTML = `<option value="">Celle par défaut</option>` + transitions.map(t => `<option>${esc(t.transitionName)}</option>`).join("");
+  } catch {}
+}
+const ALIGN = { 0: 0, 5: 5, 6: 6, 9: 9, 10: 10 };
+$("tplCreate").onclick = async () => {
+  const t = SCENE_TEMPLATES[tplSel], name = $("tplName").value.trim() || t.label;
+  if (scenes.includes(name)) return toast("Une scène porte déjà ce nom");
+  const sourceNames = inputs.map(i => i.inputName);
+  await call("CreateScene", { sceneName: name });
+  let missing = [];
+  for (const [k, x, y, w, h, al = 5] of t.items) {
+    let sceneItemId;
+    try {
+      if (k === "@titre") {
+        ({ sceneItemId } = await call("CreateInput", { sceneName: name, inputName: `${name} - Titre`, inputKind: "text_gdiplus_v3",
+          inputSettings: { text: $("tplTitle").value.trim() || t.title || name.toUpperCase(), font: { face: "Impact", size: 140, style: "Regular", flags: 0 },
+            color: abgr((allThemes()[da.theme] || BL_THEMES.sunset).c1), outline: true, outline_size: 8, outline_color: 0xff000000, align: "center" } }));
+        await call("SetSceneItemTransform", { sceneName: name, sceneItemId, sceneItemTransform: { positionX: x, positionY: y, alignment: 0 } });
+        continue;
+      }
+      if (k === "@countdown") {
+        const u = daParams(new URL(`${FILE_BASE}widget.html`));
+        u.searchParams.set("w", "countdown"); u.searchParams.set("min", 5); u.searchParams.set("done", "J'arrive !"); u.searchParams.set("bar", 1);
+        ({ sceneItemId } = await call("CreateInput", { sceneName: name, inputName: `${name} - Compte à rebours`, inputKind: "browser_source",
+          inputSettings: { url: u.toString(), width: w, height: h, restart_when_active: true } }));
+      } else {
+        const src = sourceNames.find(n => FIND[k].test(n));
+        if (!src) { missing.push(k); continue; }
+        ({ sceneItemId } = await call("CreateSceneItem", { sceneName: name, sourceName: src, sceneItemEnabled: true }));
+      }
+      await call("SetSceneItemTransform", { sceneName: name, sceneItemId, sceneItemTransform: {
+        positionX: x, positionY: y, alignment: ALIGN[al] ?? 5, boundsType: "OBS_BOUNDS_SCALE_INNER", boundsWidth: w, boundsHeight: h, boundsAlignment: 0 } });
+    } catch (e) { missing.push(k); }
+  }
+  // alertes et mini-jeux par-dessus, comme dans les autres scènes
+  const glob = scenes.find(n => /overlays \(toutes/i.test(n));
+  if (glob) { try { const { sceneItemId } = await call("CreateSceneItem", { sceneName: name, sourceName: glob, sceneItemEnabled: true });
+    await call("SetSceneItemLocked", { sceneName: name, sceneItemId, sceneItemLocked: true }); } catch {} }
+  if ($("tplTrans").value) await call("SetSceneSceneTransitionOverride", { sceneName: name, transitionName: $("tplTrans").value }).catch(() => {});
+  $("tplName").value = "";
+  await refreshAll();
+  toast(`Scène « ${name} » créée${missing.length ? ` (introuvable : ${missing.join(", ")})` : ""}`);
+};
+
+// ---------- Créateur de transitions ----------
+let myTrans = store("bl_mytrans") || [];
+function trFromDA() {
+  const t = allThemes()[da.theme] || BL_THEMES.sunset;
+  for (const k of ["c1", "c2", "c3", "bg1", "bg2"]) $("tr" + k).value = t[k];
+}
+function renderTransCreator() {
+  $("trStyle").innerHTML = Object.entries(BL_STINGERS).map(([k, [l, d]]) => `<option value="${k}" ${k === da.stinger ? "selected" : ""}>${esc(l)} : ${esc(d)}</option>`).join("");
+  if (!$("trc2").dataset.init) { trFromDA(); $("trc2").dataset.init = 1; }
+  $("myTrans").innerHTML = myTrans.map((t, i) => `<button class="stingercard" data-i="${i}">
+      <div class="vid"><video src="${HUB}/transitions/stinger_${t.file}_16x9.webm" muted loop autoplay playsinline onloadeddata="this.playbackRate = 0.7"></video></div>
+      <b>${esc(t.label)}</b><small>${esc(BL_STINGERS[t.style]?.[0] || t.style)} · <a href="#" data-del="${i}">retirer</a></small></button>`).join("")
+    || `<p class="hint">Tes transitions créées apparaîtront ici.</p>`;
+  $("myTrans").querySelectorAll(".stingercard").forEach(c => c.onclick = async e => {
+    if (e.target.dataset.del !== undefined) { e.preventDefault(); myTrans.splice(+e.target.dataset.del, 1); store("bl_mytrans", myTrans); return renderTransCreator(); }
+    await useStingerFile(myTrans[+c.dataset.i].file);
+    toast(`Transition « ${myTrans[+c.dataset.i].label} » activée`);
+  });
+}
+async function useStingerFile(file) {
+  const { transitions } = await call("GetSceneTransitionList");
+  const st = transitions.find(tr => tr.transitionKind === "obs_stinger_transition");
+  if (!st) return toast("Aucune transition stinger dans OBS");
+  const { currentSceneTransitionName } = await call("GetCurrentSceneTransition");
+  await call("SetCurrentSceneTransition", { transitionName: st.transitionName });
+  await call("SetCurrentSceneTransitionSettings", { transitionSettings: { path: `${ROOT_DIR}transitions/stinger_${file}_${isVertical ? "9x16" : "16x9"}.webm` } });
+  if (currentSceneTransitionName !== st.transitionName) await call("SetCurrentSceneTransition", { transitionName: currentSceneTransitionName });
+}
+$("trFromDA").onclick = trFromDA;
+$("trMake").onclick = async () => {
+  const style = $("trStyle").value, text = $("trText").value.trim();
+  const body = { creator: true, style, text, nologo: !$("trLogo").checked };
+  for (const k of ["c1", "c2", "c3", "bg1", "bg2"]) body[k] = $("tr" + k).value;
+  $("trMake").disabled = true; toast("Création de la transition… (30 s à 2 min)");
+  try {
+    const r = await hubPost("/api/stinger", body);
+    if (!r.name) throw new Error(r.error || "échec");
+    const label = text || `${BL_STINGERS[style][0]} perso`;
+    myTrans = [{ file: r.name, label, style }, ...myTrans.filter(t => t.file !== r.name)].slice(0, 24);
+    store("bl_mytrans", myTrans);
+    await useStingerFile(r.name);
+    renderTransCreator();
+    toast(`Transition « ${label} » créée et activée`);
+  } catch (e) { toast("Création impossible : " + e.message); }
+  $("trMake").disabled = false;
+};
+
+// ---------- Onglet Audio ----------
+const AUDIO_KINDS = { wasapi_input_capture: "Micro", wasapi_output_capture: "Sortie", wasapi_process_output_capture: "Application", ffmpeg_source: "Média" };
+const isAudio = i => AUDIO_KINDS[i.unversionedInputKind || i.inputKind] !== undefined;
+let auGroups = store("bl_audio_groups") || {}, auMix = store("bl_scene_mix") || {}, auAuto = store("bl_automix") ?? false, auSpecial = new Set(), auList = [];
+const dbText = db => db <= -100 ? "−∞ dB" : `${db.toFixed(1)} dB`;
+const micName = () => auList.find(a => a.kind === "wasapi_input_capture")?.name;
+const globalScene = () => scenes.find(n => /overlays \(toutes/i.test(n));
+async function renderAudio() {
+  if (!$("mixers")) return;
+  const sp = await call("GetSpecialInputs").catch(() => ({}));
+  auSpecial = new Set(Object.values(sp).filter(Boolean));
+  const where = {};
+  for (const sc of scenes) {
+    const { sceneItems } = await call("GetSceneItemList", { sceneName: sc }).catch(() => ({ sceneItems: [] }));
+    for (const it of sceneItems) (where[it.sourceName] = where[it.sourceName] || []).push(sc);
+  }
+  auList = [];
+  for (const i of inputs.filter(isAudio)) {
+    const kind = i.unversionedInputKind || i.inputKind;
+    const [v, m, mon, f] = await Promise.all([call("GetInputVolume", { inputName: i.inputName }), call("GetInputMute", { inputName: i.inputName }),
+      call("GetInputAudioMonitorType", { inputName: i.inputName }).catch(() => ({})), call("GetSourceFilterList", { sourceName: i.inputName }).catch(() => ({ filters: [] }))]);
+    auList.push({ name: i.inputName, kind, db: v.inputVolumeDb, muted: m.inputMuted, monitor: mon.monitorType, filters: f.filters, scenes: where[i.inputName] || [] });
+  }
+  const groupOf = n => Object.keys(auGroups).find(g => auGroups[g].members.includes(n)) || "";
+  $("mixers").innerHTML = auList.map((a, idx) => {
+    const global = auSpecial.has(a.name), isMic = a.kind === "wasapi_input_capture";
+    return `<div class="mixer ${a.muted ? "muted" : ""}" data-i="${idx}">
+      <div class="mh"><span class="kind">${AUDIO_KINDS[a.kind]}</span><b title="${esc(a.name)}">${esc(a.name)}</b>
+        <button class="btn small ${a.muted ? "danger" : ""}" data-mute>${a.muted ? "Coupé" : "Actif"}</button></div>
+      <div class="meter"><i data-vu="${esc(a.name)}"></i></div>
+      <div class="vol"><input type="range" min="-60" max="6" step="0.5" value="${Math.max(-60, a.db)}" data-vol><span>${dbText(a.db)}</span></div>
+      ${a.kind === "wasapi_process_output_capture" ? `<div class="row"><label>Application</label><select data-prop="window"><option>Chargement…</option></select></div>`
+        : a.kind.startsWith("wasapi") ? `<div class="row"><label>Périphérique</label><select data-prop="device_id"><option>Chargement…</option></select></div>` : ""}
+      <div class="row"><label>Écoute</label><select data-mon>
+        <option value="OBS_MONITORING_TYPE_NONE">Aucune</option><option value="OBS_MONITORING_TYPE_MONITOR_ONLY">Dans mon casque seulement</option>
+        <option value="OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT">Casque et live</option></select></div>
+      <div class="row"><label>Groupe</label><select data-grp><option value="">Aucun</option>${Object.keys(auGroups).map(g => `<option ${g === groupOf(a.name) ? "selected" : ""}>${esc(g)}</option>`).join("")}</select></div>
+      ${global ? `<p class="hint" style="margin:4px 0">Source globale : présente dans toutes les scènes (OBS > Paramètres > Audio).</p>`
+        : `<details><summary class="hint">Présente dans ${a.scenes.length} scène(s)</summary><div class="scenechecks">${scenes.map(sc =>
+            `<label><input type="checkbox" data-sc="${esc(sc)}" ${a.scenes.includes(sc) ? "checked" : ""}>${esc(sc)}</label>`).join("")}</div></details>`}
+      <div class="chips">${a.filters.map(f => `<span class="chip2">${esc(f.filterName)}<a data-delf="${esc(f.filterName)}" title="Retirer">✕</a></span>`).join("")}</div>
+      <div class="row" style="margin-bottom:0">${isMic ? `<button class="btn small" data-preset="micro">Micro pro</button>` : `<button class="btn small" data-preset="duck">Baisser quand je parle</button>`}
+        ${global ? "" : `<button class="btn small danger" data-del>Supprimer</button>`}</div>
+    </div>`;
+  }).join("") || `<p class="hint">Aucune source audio.</p>`;
+  $("mixers").querySelectorAll(".mixer").forEach(card => {
+    const a = auList[+card.dataset.i], q = sel => card.querySelector(sel);
+    q("[data-mon]").value = a.monitor || "OBS_MONITORING_TYPE_NONE";
+    q("[data-mute]").onclick = async () => { await call("ToggleInputMute", { inputName: a.name }); renderAudio(); };
+    q("[data-vol]").oninput = e => { q(".vol span").textContent = dbText(+e.target.value); call("SetInputVolume", { inputName: a.name, inputVolumeDb: +e.target.value }); };
+    q("[data-mon]").onchange = e => call("SetInputAudioMonitorType", { inputName: a.name, monitorType: e.target.value });
+    q("[data-grp]").onchange = e => {
+      for (const g of Object.values(auGroups)) g.members = g.members.filter(n => n !== a.name);
+      if (e.target.value) auGroups[e.target.value].members.push(a.name);
+      store("bl_audio_groups", auGroups); renderGroups();
+    };
+    const prop = q("[data-prop]");
+    if (prop) (async () => {
+      const name = prop.dataset.prop;
+      const [{ propertyItems }, { inputSettings }] = await Promise.all([
+        call("GetInputPropertiesListPropertyItems", { inputName: a.name, propertyName: name }).catch(() => ({ propertyItems: [] })),
+        call("GetInputSettings", { inputName: a.name })]);
+      prop.innerHTML = (name === "window" && !inputSettings.window ? `<option value="">Choisis une application…</option>` : "") +
+        propertyItems.map(p => `<option value="${esc(p.itemValue)}" ${p.itemValue === inputSettings[name] ? "selected" : ""}>${esc(p.itemName)}</option>`).join("");
+      prop.onchange = async e => {
+        await call("SetInputSettings", { inputName: a.name, inputSettings: name === "window" ? { window: e.target.value, priority: 2 } : { device_id: e.target.value } });
+        toast(name === "window" ? "Application choisie" : "Périphérique changé");
+      };
+    })();
+    card.querySelectorAll("[data-sc]").forEach(cb => cb.onchange = async () => {
+      const sc = cb.dataset.sc;
+      if (cb.checked) await call("CreateSceneItem", { sceneName: sc, sourceName: a.name, sceneItemEnabled: true });
+      else { const { sceneItemId } = await call("GetSceneItemId", { sceneName: sc, sourceName: a.name }); await call("RemoveSceneItem", { sceneName: sc, sceneItemId }); }
+      toast(`${a.name} : ${cb.checked ? "ajoutée à" : "retirée de"} ${sc}`);
+    });
+    card.querySelectorAll("[data-delf]").forEach(x => x.onclick = async () => { await call("RemoveSourceFilter", { sourceName: a.name, filterName: x.dataset.delf }); renderAudio(); });
+    q("[data-preset]").onclick = async e => {
+      const have = new Set(a.filters.map(f => f.filterName));
+      const add = (filterName, filterKind, filterSettings) => have.has(filterName) ? null
+        : call("CreateSourceFilter", { sourceName: a.name, filterName, filterKind, filterSettings }).catch(err => toast(`${filterName} : ${err.message}`));
+      if (e.target.dataset.preset === "micro") {
+        await add("Suppression du bruit", "noise_suppress_filter_v2", { method: "rnnoise" });
+        await add("Porte de bruit", "noise_gate_filter", { open_threshold: -26, close_threshold: -32, attack_time: 25, hold_time: 200, release_time: 150 });
+        await add("Compresseur", "compressor_filter", { ratio: 4, threshold: -18, attack_time: 6, release_time: 60, output_gain: 2 });
+        await add("Limiteur", "limiter_filter", { threshold: -2, release_time: 60 });
+        toast("Micro pro : bruit supprimé, voix compressée et limitée");
+      } else {
+        const mic = micName();
+        if (!mic) return toast("Aucun micro trouvé");
+        await add("Baisse quand je parle", "compressor_filter", { ratio: 12, threshold: -36, attack_time: 10, release_time: 450, output_gain: 0, sidechain_source: mic });
+        toast(`${a.name} baisse quand « ${mic} » capte ta voix`);
+      }
+      renderAudio();
+    };
+    const del = q("[data-del]");
+    if (del) del.onclick = async () => { if (!confirm(`Supprimer la source « ${a.name} » de toutes les scènes ?`)) return; await call("RemoveInput", { inputName: a.name }); await refreshAll(); };
+  });
+  $("auScope").innerHTML = (globalScene() ? `<option value="@all">Toutes les scènes</option>` : "") + scenes.filter(n => n !== globalScene()).map(n => `<option ${n === current ? "selected" : ""}>${esc(n)}</option>`).join("");
+  $("auAuto").checked = auAuto;
+  renderGroups(); renderMixes();
+}
+function renderGroups() {
+  $("auGroups").innerHTML = Object.entries(auGroups).map(([g, d]) => `<div class="counterbox">
+      <div class="row" style="margin:0"><b style="flex:1">${esc(g)}</b><button class="btn small ${d.muted ? "danger" : ""}" data-gmute="${esc(g)}">${d.muted ? "Coupé" : "Actif"}</button>
+        <button class="btn small" data-gdel="${esc(g)}" title="Supprimer le groupe">✕</button></div>
+      <div class="vol" style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="range" min="-30" max="10" step="0.5" value="${d.db || 0}" data-gvol="${esc(g)}" style="flex:1"><span>${(d.db || 0) > 0 ? "+" : ""}${(d.db || 0).toFixed(1)} dB</span></div>
+      <small class="hint">${d.members.length ? d.members.map(esc).join(", ") : "Aucune source : choisis le groupe dans la carte d'une source"}</small></div>`).join("") || `<p class="hint">Aucun groupe.</p>`;
+  $("auGroups").querySelectorAll("[data-gvol]").forEach(r => r.onchange = async () => {
+    const g = auGroups[r.dataset.gvol], delta = +r.value - (g.db || 0);
+    g.db = +r.value; store("bl_audio_groups", auGroups);
+    for (const n of g.members) {
+      const { inputVolumeDb } = await call("GetInputVolume", { inputName: n }).catch(() => ({ inputVolumeDb: null }));
+      if (inputVolumeDb !== null) await call("SetInputVolume", { inputName: n, inputVolumeDb: Math.max(-100, Math.min(26, inputVolumeDb + delta)) });
+    }
+    renderAudio();
+  });
+  $("auGroups").querySelectorAll("[data-gmute]").forEach(b => b.onclick = async () => {
+    const g = auGroups[b.dataset.gmute]; g.muted = !g.muted; store("bl_audio_groups", auGroups);
+    for (const n of g.members) await call("SetInputMute", { inputName: n, inputMuted: g.muted }).catch(() => {});
+    renderAudio();
+  });
+  $("auGroups").querySelectorAll("[data-gdel]").forEach(b => b.onclick = () => { delete auGroups[b.dataset.gdel]; store("bl_audio_groups", auGroups); renderAudio(); });
+}
+function renderMixes() {
+  $("auMixes").innerHTML = Object.keys(auMix).map(sc => `<span class="chip2">${esc(sc)} : ${Object.keys(auMix[sc]).length} sources<a data-mdel="${esc(sc)}" title="Oublier">✕</a></span>`).join("")
+    || `<span class="hint">Aucun mix enregistré.</span>`;
+  $("auMixes").querySelectorAll("[data-mdel]").forEach(x => x.onclick = () => { delete auMix[x.dataset.mdel]; store("bl_scene_mix", auMix); renderMixes(); });
+}
+async function applySceneMix(scene) {
+  const mix = auAuto && auMix[scene];
+  if (!mix) return;
+  for (const [n, v] of Object.entries(mix)) {
+    await call("SetInputVolume", { inputName: n, inputVolumeDb: v.db }).catch(() => {});
+    await call("SetInputMute", { inputName: n, inputMuted: v.muted }).catch(() => {});
+  }
+}
+$("auAuto").onchange = e => { auAuto = e.target.checked; store("bl_automix", auAuto); };
+$("auSnap").onclick = async () => {
+  await renderAudio();
+  auMix[current] = Object.fromEntries(auList.map(a => [a.name, { db: a.db, muted: a.muted }]));
+  store("bl_scene_mix", auMix); renderMixes();
+  toast(`Mix enregistré pour « ${current} »`);
+};
+$("auGroupAdd").onclick = () => {
+  const g = $("auGroupName").value.trim();
+  if (!g || auGroups[g]) return toast("Choisis un nom de groupe libre");
+  auGroups[g] = { members: [], db: 0, muted: false }; store("bl_audio_groups", auGroups);
+  $("auGroupName").value = ""; renderAudio();
+};
+$("auAdd").onclick = async () => {
+  const kind = $("auKind").value, scope = $("auScope").value;
+  const base = $("auName").value.trim() || { wasapi_input_capture: "Micro", wasapi_output_capture: "Sortie audio", wasapi_process_output_capture: "Application" }[kind];
+  let name = base, n = 2;
+  while (inputs.some(i => i.inputName === name)) name = `${base} ${n++}`;
+  const sceneName = scope === "@all" ? globalScene() : scope;
+  const settings = kind === "wasapi_process_output_capture" ? { priority: 2 } : { device_id: "default" };
+  try {
+    await call("CreateInput", { sceneName, inputName: name, inputKind: kind, inputSettings: settings, sceneItemEnabled: true });
+    $("auName").value = "";
+    await refreshAll();
+    toast(`« ${name} » ajoutée${scope === "@all" ? " à toutes les scènes" : ` à ${scope}`}`);
+  } catch (e) { toast("Ajout impossible : " + e.message); }
+};
+// vu-mètres : événement InputVolumeMeters (≈ 20 fois par seconde)
+function onMeters(list) {
+  for (const it of list) {
+    const el = document.querySelector(`[data-vu="${CSS.escape(it.inputName)}"]`);
+    if (!el) continue;
+    const peak = Math.max(0, ...(it.inputLevelsMul || []).map(c => c[1] || 0));
+    const db = peak > 0 ? 20 * Math.log10(peak) : -60;
+    el.style.width = `${100 - Math.max(0, Math.min(100, (db + 60) / 60 * 100))}%`;
+  }
+}
 
 // ---------- Onglet Transitions ----------
 async function renderTransitions() {

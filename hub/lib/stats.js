@@ -58,6 +58,7 @@ class Stats {
   setViewers(platform, n) {
     this.session.viewers[platform] = n;
     this.session.peak[platform] = Math.max(this.session.peak[platform], n);
+    this.hub.broadcast({ kind: "viewers", viewers: this.session.viewers });
   }
 
   setLikes(n) { this.session.likes = n; }

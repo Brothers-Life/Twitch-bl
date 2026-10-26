@@ -96,6 +96,9 @@ class Updater {
         { windowsHide: true, timeout: 180000 }, err => (err ? reject(new Error("décompression impossible")) : resolve())));
       const files = walk(dir).filter(f => !KEEP.some(k => k.test(f)));
       if (!files.includes("version.json") || !files.includes("hub/hub.js")) throw new Error("archive incomplète");
+      // le lecteur de musique tourne : on l'arrête pour pouvoir remplacer son .exe
+      this.hub.media?.stop();
+      await new Promise(r => setTimeout(r, 800));
       for (const f of files) {
         const dest = path.join(this.root, ...f.split("/"));
         // transitions déjà présentes (souvent régénérées avec le logo de la chaîne) : on n'ajoute que les nouvelles

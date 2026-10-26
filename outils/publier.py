@@ -15,6 +15,7 @@ run = lambda *c: subprocess.run(c, cwd=ROOT, check=True, capture_output=True, te
 
 json.dump({"version": version}, open(os.path.join(ROOT, "version.json"), "w", encoding="utf-8"), indent=2)
 subprocess.run([sys.executable, os.path.join(ROOT, "outils", "build_app.py")], check=True)
+subprocess.run([sys.executable, os.path.join(ROOT, "outils", "build_media.py")], check=True)   # lecteur de musique (hub/media/bl-media.exe)
 
 files = [f for f in run("git", "ls-files", "--cached", "--others", "--exclude-standard").splitlines() if os.path.isfile(os.path.join(ROOT, f))]
 os.makedirs(BUILD, exist_ok=True)
@@ -28,6 +29,7 @@ with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
                 p = os.path.join(d, name)
                 z.write(p, rel + "/" + os.path.relpath(p, base).replace("\\", "/"))
     z.write(os.path.join(ROOT, "assets", "logo-defaut.png"), "logo.png")
+    z.write(os.path.join(ROOT, "hub", "media", "bl-media.exe"), "hub/media/bl-media.exe")
 
 # garde-fous : aucune donnée perso ni aucun jeton dans le zip
 names = zipfile.ZipFile(out).namelist()

@@ -61,7 +61,19 @@ class Bot {
       .replace(/\{user\}/g, e.user)
       .replace(/\{points\}/g, this.getPoints(e.platform, e.user))
       .replace(/\{uptime\}/g, `${Math.floor(up / 60)} h ${String(up % 60).padStart(2, "0")}`)
-      .replace(/\{plateforme\}/g, e.platform);
+      .replace(/\{plateforme\}/g, e.platform)
+      .replace(/\{musique\}/g, () => this.hub.media.text())
+      // {compteur:morts} affiche un compteur, {compteur:morts+1} l'augmente d'abord (widget « compteur » mis à jour)
+      .replace(/\{compteur:([a-z0-9_-]+)([+-]\d+)?\}/g, (_, id, delta) => {
+        const all = this.hub.config.data.counters;
+        const c = all[id] || (all[id] = { label: id, value: 0 });
+        if (delta) {
+          c.value += parseInt(delta, 10);
+          this.hub.config.save();
+          this.hub.broadcast({ kind: "counters", counters: all });
+        }
+        return c.value;
+      });
   }
 
   handle(e) {

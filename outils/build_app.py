@@ -18,7 +18,9 @@ keep = []
 for rule in re.findall(r"[^{}]+\{[^{}]*\}", conf_css):
     sel = rule.split("{")[0].strip()
     if any(sel.startswith(k) for k in (".grid", ".scene", ".theme", ".sw", ".item", ".eye", ".toggles", "details summary", ".stylecard", ".preview", ".wstyle-row",
-                                       ".packs", ".pack", ".bgprev", ".stingers", ".stingercard", ".dest", ".onair")):
+                                       ".packs", ".pack", ".bgprev", ".stingers", ".stingercard", ".dest", ".onair",
+                                       ".np", ".ctrl", ".counters", ".counterbox", ".tpl", ".swrow",
+                                       ".mixer", ".meter", ".chips", ".chip2", ".scenechecks", ".groups")):
         keep.append(rule.strip())
 extra_css = """
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
@@ -131,6 +133,8 @@ dash_main = dash_main.replace('''      <div class="card"><h3><span class="tag tw
 
 ICONS = {
   "scenes": '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/>',
+  "musique": '<path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/>',
+  "audio": '<path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/>',
   "diffusion": '<circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/>',
   "stats": '<path d="M5 20V11M11 20V5M17 20v-7M3 20h18"/>',
   "chat": '<path d="M4 5h16v11H9l-5 4z"/>',
@@ -151,7 +155,7 @@ def nb(tab, label, on=False):
             f'<svg viewBox="0 0 24 24" aria-hidden="true">{ICONS[tab]}</svg><span>{label}</span></button>')
 nav = "\n".join([
   "<nav>",
-  '  <span class="grp">Live</span>', nb("scenes", "Scènes", True), nb("diffusion", "Diffusion"), nb("stats", "Stats"), nb("chat", "Chat"),
+  '  <span class="grp">Live</span>', nb("scenes", "Scènes", True), nb("diffusion", "Diffusion"), nb("musique", "Musique"), nb("audio", "Audio"), nb("stats", "Stats"), nb("chat", "Chat"),
   '  <span class="sep"></span><span class="grp">Communauté</span>', nb("alerts", "Alertes"), nb("bot", "Bot"), nb("games", "Mini-jeux"), nb("board", "Classement"),
   '  <span class="sep"></span><span class="grp">Design</span>', nb("identite", "Identité"), nb("da", "DA & animations"), nb("widgets", "Widgets"), nb("textes", "Textes"), nb("transitions", "Transitions"),
   '  <span class="sep"></span><span class="grp">Réglages</span>', nb("conn", "Connexions"),

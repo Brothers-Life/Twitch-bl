@@ -13,3 +13,5 @@ outils/gen_v5.py
 outils/branding.py
 *.bak
 __pycache__/
+# Programmes compilés : construits par outils/publier.py
+hub/media/*.exe

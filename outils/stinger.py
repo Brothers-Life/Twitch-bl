@@ -8,7 +8,7 @@ THEMES_JS = os.path.join(ROOT, "theme.js")
 # --out / --logo : dossier de sortie et logo (par défaut transitions/ et le logo de la chaîne)
 _a = sys.argv
 OUT = _a[_a.index("--out") + 1] if "--out" in _a else os.path.join(ROOT, "transitions")
-LOGO = Image.open(_a[_a.index("--logo") + 1] if "--logo" in _a else os.path.join(ROOT, "logo.png")).convert("RGBA")
+LOGO = None if "--nologo" in _a else Image.open(_a[_a.index("--logo") + 1] if "--logo" in _a else os.path.join(ROOT, "logo.png")).convert("RGBA")
 FONT = r"C:/Windows/Fonts/impact.ttf"
 FPS, FRAMES = 60, 60          # 1 s ; écran entièrement couvert à 500 ms
 os.makedirs(OUT, exist_ok=True)
@@ -132,8 +132,8 @@ def render(name, colors, W, H, style="bandes", text=""):
     rng = random.Random(7)
     rnd = [rng.random() for _ in range(2000)]
     s = min(W, H) / 1080
-    logo_base = LOGO.resize((int(240 * s), int(240 * s)), Image.LANCZOS)
-    size = int(120 * s)
+    logo_base = LOGO.resize((int(240 * s), int(240 * s)), Image.LANCZOS) if LOGO else None
+    size = int((120 if LOGO else 240) * s)   # sans logo, le texte prend toute la place
     probe = ImageDraw.Draw(Image.new("RGBA", (1, 1)))
     while text and size > 40 and probe.textlength(text, font=ImageFont.truetype(FONT, size)) > W * 0.9:
         size -= 6
@@ -149,12 +149,14 @@ def render(name, colors, W, H, style="bandes", text=""):
         a = 1 - min(1, abs(t - 0.5) / 0.17)
         if a > 0:
             sc = 0.85 + 0.15 * ease(a)
-            lg = logo_base.resize((max(1, int(logo_base.width * sc)),) * 2, Image.LANCZOS)
-            lg.putalpha(lg.getchannel("A").point(lambda v: int(v * ease(a))))
-            img.alpha_composite(lg, (W // 2 - lg.width // 2, int(H / 2 - lg.height * 0.75)))
+            if logo_base:
+                lg = logo_base.resize((max(1, int(logo_base.width * sc)),) * 2, Image.LANCZOS)
+                lg.putalpha(lg.getchannel("A").point(lambda v: int(v * ease(a))))
+                img.alpha_composite(lg, (W // 2 - lg.width // 2, int(H / 2 - lg.height * 0.75)))
             if text:
                 tw = d.textlength(text, font=font)
-                d.text((W / 2 - tw / 2, H / 2 + 40 * s), text, font=font, fill=c1 + (int(255 * ease(a)),))
+                ty = H / 2 + 40 * s if logo_base else H / 2 - font.size / 2
+                d.text((W / 2 - tw / 2, ty), text, font=font, fill=c1 + (int(255 * ease(a)),))
         img.save(os.path.join(tmp, f"{f:03d}.png"), compress_level=1)
     out = os.path.join(OUT, f"stinger_{name}.webm")
     subprocess.run(["ffmpeg", "-y", "-loglevel", "error", "-framerate", str(FPS), "-i", os.path.join(tmp, "%03d.png"),
@@ -176,6 +178,8 @@ def opt(k, default=None):
         return v
     return default
 opt("--out"); opt("--logo")
+if "--nologo" in args:
+    args.remove("--nologo")
 style = opt("--style", "bandes")
 text = opt("--text", "").upper()
 name = opt("--name")

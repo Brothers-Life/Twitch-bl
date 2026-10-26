@@ -8,7 +8,12 @@
     commun      theme=sunset|neon|lspd|ems|gold|gang|minimal   c1/c2/c3=couleur (sans #)
                 style=carte|verre|neon|gta|minimal|plein   (look du widget)
     countdown   min=5  done=J'arrive !  bar=1
-    music       label=En écoute
+    music       label=En écoute  cover=1 progress=1 source=1   (Spotify, Deezer, YouTube Music… via le BL Hub)
+    counter     id=morts  label=Morts                          (compteur réglé depuis BL Studio ou le bot)
+    viewers     label=Spectateurs  detail=1                    (total Twitch + TikTok + YouTube)
+    uptime      label=En live depuis
+    leaderboard title=Top points  n=5
+    text        text=…  anim=glow|type|wave|pulse|none  size=1
     clock       date=1
     badge       title=MA CHAÎNE  sub=Live  dot=1  logo=1
     chat        channel=pseudo_twitch  max=8  fade=30 (secondes, 0 = jamais)
@@ -52,6 +57,59 @@
   .music small { font-size: 15vh; }
   .music strong { font-size: 27vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .music span { font-size: 20vh; color: rgba(255,255,255,.7); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .music .cover { flex: none; height: 64vh; aspect-ratio: 1; border-radius: 4vh; object-fit: cover; box-shadow: 0 1vh 4vh rgba(0,0,0,.5); }
+  .music .src { display: inline-flex; align-items: center; gap: 2vh; }
+  .music .src i { width: 7vh; height: 7vh; border-radius: 50%; background: var(--src, var(--c2)); box-shadow: 0 0 3vh var(--src, var(--c2)); }
+  /* avec la barre de progression : textes plus compacts pour tout faire tenir */
+  .music:has(.prog) .txt { gap: 1vh; }
+  .music:has(.prog) small { font-size: 13vh; }
+  .music:has(.prog) strong { font-size: 23vh; }
+  .music:has(.prog) span { font-size: 16vh; }
+  .music .prog { height: 4vh; border-radius: 2vh; background: rgba(255,255,255,.15); overflow: hidden; margin-top: 1vh; }
+  .music .prog b { display: block; height: 100%; width: 0; background: var(--c2); transition: width 1s linear; }
+  .music.paused .cover { filter: grayscale(.8) brightness(.7); }
+
+  /* compteur */
+  .counter { justify-content: center; gap: 6vh; }
+  .counter small { font-size: 22vh; }
+  .counter b { font-size: 60vh; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; color: var(--c1); font-family: var(--font-title); }
+  .bump { animation: bump .45s cubic-bezier(.2,1.6,.4,1); }
+  @keyframes bump { 0% { transform: scale(1.5); color: var(--c2); } }
+
+  /* spectateurs */
+  .viewers { justify-content: center; gap: 5vh; }
+  .viewers .live { width: 14vh; height: 14vh; border-radius: 50%; background: #e5484d; box-shadow: 0 0 5vh #e5484d; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .viewers b { font-size: 50vh; font-weight: 700; font-variant-numeric: tabular-nums; font-family: var(--font-title); }
+  .viewers .det { display: flex; gap: 4vh; font-size: 15vh; color: var(--sub); }
+  .viewers .det span::before { content: ""; display: inline-block; width: 6vh; height: 6vh; border-radius: 50%; background: var(--p); margin-right: 1.5vh; vertical-align: middle; }
+
+  /* durée du live */
+  .uptime { flex-direction: column; justify-content: center; gap: 1vh; }
+  .uptime b { font-size: 50vh; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; font-family: var(--font-title); }
+  .uptime small { font-size: 16vh; }
+
+  /* classement */
+  .board { flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 1.2vh; padding: 3vh 5vh; }
+  .board h4 { margin: 0 0 1vh; font-size: 6vh; font-family: var(--font-title); color: var(--c1); letter-spacing: .04em; }
+  .board .r { display: flex; align-items: center; gap: 3vh; font-size: 4.6vh; }
+  .board .r em { font-style: normal; width: 6vh; height: 6vh; border-radius: 1.5vh; display: grid; place-items: center; background: var(--c3); font-weight: 700; font-size: 3.6vh; }
+  .board .r:first-of-type em { background: var(--c2); color: var(--bg2); }
+  .board .r span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .board .r strong { color: var(--c2); font-variant-numeric: tabular-nums; }
+
+  /* texte animé */
+  .ftext { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; text-align: center; padding: 0 4vh;
+    font-family: var(--font-title); color: var(--c1); line-height: 1; }
+  .ftext.glow { animation: glow 2.4s ease-in-out infinite; }
+  @keyframes glow { 50% { text-shadow: 0 0 6vh var(--c2), 0 0 14vh var(--c3); } }
+  .ftext.pulse { animation: tpulse 1.8s ease-in-out infinite; }
+  @keyframes tpulse { 50% { transform: scale(1.06); } }
+  .ftext.wave span { display: inline-block; animation: wave 1.6s ease-in-out infinite; }
+  @keyframes wave { 50% { transform: translateY(-12%); color: var(--c2); } }
+  .ftext.type span { opacity: 0; animation: typeIn .01s forwards; }
+  @keyframes typeIn { to { opacity: 1; } }
 
   /* horloge */
   .clock { flex-direction: column; justify-content: center; align-items: flex-end; gap: 0; }
@@ -130,8 +188,15 @@
 
   const html = {
     countdown: `<div class="countdown"><b id="t">--:--</b>${on("bar") ? `<div class="bar"><i id="bar"></i></div>` : ""}</div>`,
-    music: `<div class="chip music hide" id="box"><div class="art"><i></i><i></i><i></i></div>
-             <div class="txt"><small class="label">${esc(get("label", "En écoute"))}</small><strong id="title"></strong><span id="artist"></span></div></div>`,
+    music: `<div class="chip music hide" id="box"><div class="art" id="art"><i></i><i></i><i></i></div>${on("cover") ? `<img class="cover" id="cover" alt="" hidden>` : ""}
+             <div class="txt"><small class="label"><span class="src" id="src">${esc(get("label", "En écoute"))}</span></small><strong id="title"></strong><span id="artist"></span>
+             ${on("progress") ? `<div class="prog"><b id="prog"></b></div>` : ""}</div></div>`,
+    counter: `<div class="chip counter"><small class="label">${esc(get("label", "Morts"))}</small><b id="cval">0</b></div>`,
+    viewers: `<div class="chip viewers"><span class="live"></span><div class="txt"><small class="label">${esc(get("label", "Spectateurs"))}</small><b id="vtot">0</b></div>
+             ${on("detail") ? `<div class="det" id="vdet"></div>` : ""}</div>`,
+    uptime: `<div class="chip uptime"><small class="label">${esc(get("label", "En live depuis"))}</small><b id="up">0:00:00</b></div>`,
+    leaderboard: `<div class="chip board"><h4>${esc(get("title", "Top points"))}</h4><div id="rows"></div></div>`,
+    text: `<div class="ftext ${esc(get("anim", "glow"))}" id="ftext" style="font-size:${48 * parseFloat(get("size", "1"))}vh"></div>`,
     clock: `<div class="chip clock"><b id="clock">--:--</b>${on("date") ? `<small class="label" id="date"></small>` : ""}</div>`,
     badge: `<div class="chip badge">${on("logo") ? `<img src="logo.png" alt="">` : ""}
              <div class="txt"><b>${esc(get("title", "MA CHAÎNE"))}</b>
@@ -170,19 +235,88 @@
   }
 
   if (w === "music") {
-    // nowplaying.js est réécrit toutes les 2 s par le script OBS brotherslife.lua
+    // source principale : le BL Hub (toutes les applis, pochette, progression) ; secours : nowplaying.js (Spotify, script OBS)
+    let fromHub = false, music = null;
+    const label = get("label", "En écoute");
+    const show = m => {
+      music = m;
+      $("box").classList.toggle("hide", !m);
+      if (!m) return;
+      $("box").classList.toggle("paused", !m.playing);
+      $("title").textContent = m.title; $("artist").textContent = m.artist || "";
+      if (on("source") && m.label) { $("src").innerHTML = `<i></i>${esc(label)} · ${esc(m.label)}`; $("src").style.setProperty("--src", m.color); }
+      const img = $("cover");
+      if (img && m.cover) { img.src = `http://127.0.0.1:3939/api/music/cover?id=${m.cover}`; img.hidden = false; $("art").hidden = true; }
+      else { if (img) img.hidden = true; $("art").hidden = false; }
+    };
+    setInterval(() => {
+      if (!music || !$("prog") || !music.duration) return;
+      const pos = music.position + (music.playing ? (Date.now() - music.at) / 1000 : 0);
+      $("prog").style.width = `${Math.min(100, pos / music.duration * 100)}%`;
+    }, 1000);
+    blHub(m => {
+      if (m.kind === "hello" || m.kind === "music") { if (m.music !== undefined) { fromHub = true; show(m.music); } }
+    });
     const poll = () => {
+      if (fromHub) return;
       const s = document.createElement("script");
       s.src = `nowplaying.js?t=${Date.now()}`;
       s.onload = s.onerror = () => {
         s.remove();
-        const np = window.__NP, playing = np && np.playing;
-        $("box").classList.toggle("hide", !playing);
-        if (playing) { $("title").textContent = np.title; $("artist").textContent = np.artist; }
+        const np = window.__NP;
+        if (!fromHub) show(np && np.playing ? { title: np.title, artist: np.artist, playing: true, label: "Spotify", color: "#1DB954" } : null);
       };
       document.head.appendChild(s);
     };
     poll(); setInterval(poll, 2000);
+  }
+
+  if (w === "counter") {
+    const id = get("id", "morts");
+    let last = null;
+    blHub(m => {
+      const c = (m.kind === "hello" || m.kind === "counters") && m.counters && m.counters[id];
+      if (!c) return;
+      const el = $("cval");
+      el.textContent = c.value;
+      if (last !== null && last !== c.value) { el.classList.remove("bump"); void el.offsetWidth; el.classList.add("bump"); }
+      last = c.value;
+    });
+  }
+
+  if (w === "viewers") {
+    const render = v => {
+      if (!v) return;
+      $("vtot").textContent = (v.twitch || 0) + (v.tiktok || 0) + (v.youtube || 0);
+      if ($("vdet")) $("vdet").innerHTML = ["twitch", "tiktok", "youtube"].filter(k => v[k]).map(k =>
+        `<span style="--p:${BL_PLATFORMS[k].color}">${v[k]}</span>`).join("");
+    };
+    blHub(m => { if (m.stats) render(m.stats.viewers); if (m.kind === "viewers") render(m.viewers); });
+  }
+
+  if (w === "uptime") {
+    let since = Date.now();
+    blHub(m => { if (m.stats && m.stats.startedAt) since = m.stats.startedAt; });
+    setInterval(() => {
+      const t = Math.max(0, Math.floor((Date.now() - since) / 1000));
+      $("up").textContent = `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+    }, 1000);
+  }
+
+  if (w === "leaderboard") {
+    const n = parseInt(get("n", "5"));
+    blHub(m => {
+      if (!m.leaderboard) return;
+      $("rows").innerHTML = m.leaderboard.slice(0, n).map((p, i) =>
+        `<div class="r"><em>${i + 1}</em><span>${esc(p.user)}</span><strong>${p.points}</strong></div>`).join("") || `<div class="r"><span>Pas encore de points</span></div>`;
+    });
+  }
+
+  if (w === "text") {
+    const txt = get("text", "Bienvenue !"), anim = get("anim", "glow"), el = $("ftext");
+    if (anim === "wave" || anim === "type") {
+      el.innerHTML = [...txt].map((c, i) => `<span style="animation-delay:${anim === "wave" ? i * 0.08 : i * 0.07}s">${c === " " ? "&nbsp;" : esc(c)}</span>`).join("");
+    } else el.textContent = txt;
   }
 
   if (w === "chat") {
