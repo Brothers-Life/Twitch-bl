@@ -47,6 +47,7 @@ class SetupForm : Form
     public SetupForm(bool verify)
     {
         this.verify = verify;
+        try { File.Delete(Path.Combine(Path.GetTempPath(), verify ? "bl-studio-verification.txt" : "bl-studio-installation.txt")); } catch { }
         Text = verify ? "Vérification de BL Studio" : "Installation de BL Studio";
         ClientSize = new Size(620, 470);
         FormBorderStyle = FormBorderStyle.FixedSingle;
@@ -76,8 +77,10 @@ class SetupForm : Form
         go.Click += (s, e) => Start();
         quit.Click += (s, e) => Close();
         Controls.AddRange(new Control[] { stripe, title, sub, step, bar, log, go, quit });
+        // mode vérification : démarre tout seul
+        if (verify) Shown += (s, e) => Start();
         Log("Dossier d'installation : " + Installer.Dest);
-        Log(verify ? "Mode vérification : rien n'est installé ni modifié. Clique sur « Vérifier »."
+        Log(verify ? "Mode vérification : rien n'est installé ni modifié. Compte rendu : %TEMP%\\bl-studio-verification.txt"
                    : "Clique sur « Installer ». Windows peut demander l'autorisation pour chaque logiciel installé.");
     }
 
@@ -100,6 +103,8 @@ class SetupForm : Form
         log.SelectionColor = c;
         log.AppendText(line + "\r\n");
         log.ScrollToCaret();
+        // compte rendu gardé dans %TEMP% (à envoyer en cas de souci)
+        try { File.AppendAllText(Path.Combine(Path.GetTempPath(), verify ? "bl-studio-verification.txt" : "bl-studio-installation.txt"), line + "\r\n", Encoding.UTF8); } catch { }
     }
 
     void Start()

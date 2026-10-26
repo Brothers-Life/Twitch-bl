@@ -8,6 +8,11 @@
 import copy, json, os, re, secrets, shutil, subprocess, sys, uuid
 from urllib.parse import quote
 
+# accents lisibles dans l'installeur (python -I ignore PYTHONIOENCODING)
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 args = sys.argv[1:]
 ROOT = os.path.abspath(args[args.index("--root") + 1] if "--root" in args else os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 FORCE = "--force" in args
