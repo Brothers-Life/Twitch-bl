@@ -114,19 +114,21 @@
     const [kind, icon] = KINDS[a.type] || ["Alerte", "!"];
     const plat = BL_PLATFORMS[a.platform] || { label: a.platform, color: "#555" };
     const message = a.message ? `<div class="msg">« ${esc(a.message)} »</div>` : "";
-    stage.className = `anim-${ANIM} in`;
+    const anim = a.anim || ANIM;
+    stage.className = `anim-${anim} in`;
     stage.style.width = "100%";
-    stage.innerHTML = ANIM === "gta"
+    stage.innerHTML = anim === "gta"
       ? `<div class="gta"><div class="big">${esc(kind)}</div><div class="band">${esc(a.text)}</div>${a.message ? `<div class="small">« ${esc(a.message)} »</div>` : ""}</div>`
-      : `<div class="alert panel" style="margin:auto"><div class="icon">${a.type === "follow" || a.type === "raid" ? `<img src="logo.png" alt="">` : icon}</div>
+      : `<div class="alert panel" style="margin:auto"><div class="icon">${a.image ? `<img src="medias/${encodeURIComponent(a.image)}" alt="">` : a.type === "follow" || a.type === "raid" ? `<img src="logo.png" alt="">` : icon}</div>
            <div class="body"><div class="kind">${esc(kind)} <span class="plat" style="background:${plat.color}">${esc(plat.label)}</span></div>
            <div class="text">${esc(a.text)}</div>${message}</div></div>`;
-    if (a.sound) chime(a.type, a.volume ?? 0.6);
+    if (a.sound && a.soundFile) { const s = new Audio(`sons/${encodeURIComponent(a.soundFile)}`); s.volume = a.volume ?? 0.6; s.play().catch(() => {}); }
+    else if (a.sound) chime(a.type, a.volume ?? 0.6);
     if (a.tts && a.message && "speechSynthesis" in window) {
       const u = new SpeechSynthesisUtterance(`${a.user} dit : ${a.message}`); u.lang = "fr-FR"; speechSynthesis.speak(u);
     }
     const dur = (a.duration || 6) * 1000;
-    setTimeout(() => { stage.className = `anim-${ANIM} out`; }, dur);
+    setTimeout(() => { stage.className = `anim-${anim} out`; }, dur);
     setTimeout(() => { stage.innerHTML = ""; busy = false; next(); }, dur + 600);
   }
 

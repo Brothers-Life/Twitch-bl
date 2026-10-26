@@ -91,6 +91,22 @@ class Bot {
     }
     if (cmd === "!points") return this.reply(e, `@${e.user} tu as ${this.getPoints(e.platform, e.user)} ${this.cfg.pointsName}`);
     if (cmd === "!top") return this.reply(e, "Top : " + this.leaderboard(5).map((p, i) => `${i + 1}. ${p.user} (${p.points})`).join(" · "));
+    // !son <nom> : joue un son de la soundboard contre des points (si activé dans BL Studio)
+    if (cmd === "!son" || cmd === "!sons") {
+      const sb = this.hub.config.data.soundboard;
+      if (!sb.chat) return;
+      const pads = sb.pads.filter(p => p.chat !== false);
+      const want = msg.slice(word.length).trim().toLowerCase();
+      if (!want) return this.reply(e, `Sons (${sb.cost} ${this.cfg.pointsName}) : ${pads.map(p => p.label.toLowerCase()).join(", ") || "aucun"} — tape !son <nom>`);
+      const pad = pads.find(p => p.label.toLowerCase() === want) || pads.find(p => p.label.toLowerCase().startsWith(want));
+      if (!pad) return this.reply(e, `@${e.user} son introuvable, tape !son pour la liste`);
+      if (now - (this.cooldowns["!son"] || 0) < 5000) return;
+      if (this.getPoints(e.platform, e.user) < sb.cost) return this.reply(e, `@${e.user} il te faut ${sb.cost} ${this.cfg.pointsName}`);
+      this.addPoints(e.platform, e.user, -sb.cost);
+      this.cooldowns["!son"] = now;
+      this.hub.playSound(pad.file, pad.volume);
+      return;
+    }
 
     const c = this.cfg.commands.find(c => c.enabled && c.cmd.toLowerCase() === cmd);
     if (!c) return;

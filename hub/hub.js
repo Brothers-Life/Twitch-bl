@@ -34,6 +34,10 @@ const DEFAULT_CONFIG = {
   music: { source: "auto", showPaused: false },
   // compteurs affichés par le widget « compteur » (morts, victoires, défis…)
   counters: { morts: { label: "Morts", value: 0 } },
+  // soundboard : pads (fichiers du dossier sons/), jouables depuis BL Studio, le Stream Deck et le chat (!son nom)
+  soundboard: { pads: [], chat: false, cost: 100, volume: 0.8 },
+  // clé des raccourcis Stream Deck (générée au premier démarrage)
+  actionsKey: "",
   tiktok: { username: "" },
   youtube: { channel: "" },
   streamelements: { jwt: "" },
@@ -148,7 +152,9 @@ class Hub {
     const value = e.type === "gift" ? e.value : e.amount;
     if (t.min && (value || 0) < t.min) return;
     const text = t.text.replace(/\{(\w+)\}/g, (_, k) => (e[k] ?? ""));
-    this.broadcast({ kind: "alert", alert: { ...e, text, duration: a.duration, sound: a.sound, volume: a.volume, tts: a.tts } });
+    // chaque type peut avoir son son, son image, son animation et sa durée
+    this.broadcast({ kind: "alert", alert: { ...e, text, duration: t.duration || a.duration, sound: a.sound && t.sound !== "aucun", soundFile: t.sound && t.sound !== "aucun" ? t.sound : "",
+      image: t.image || "", anim: t.anim || "", volume: a.volume, tts: a.tts } });
   }
 
   publicConfig() {
@@ -178,7 +184,8 @@ const hub = new Hub();
 
 // ---------- HTTP ----------
 const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".png": "image/png",
-  ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".webm": "video/webm", ".json": "application/json", ".mp3": "audio/mpeg", ".wav": "audio/wav" };
+  ".jpg": "image/jpeg", ".svg": "image/svg+xml", ".webm": "video/webm", ".json": "application/json", ".mp3": "audio/mpeg", ".wav": "audio/wav", ".ogg": "audio/ogg",
+  ".gif": "image/gif", ".webp": "image/webp", ".jpeg": "image/jpeg" };
 
 function sendFile(res, file, range) {
   fs.readFile(file, (err, buf) => {
@@ -234,6 +241,9 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const p = url.pathname;
 
+  // raccourcis Stream Deck : http://127.0.0.1:3939/action/<nom>?k=<clé>&… (bouton « Site web », requête en arrière-plan)
+  if (p.startsWith("/action/")) return runAction(p.slice(8), url.searchParams, res);
+
   // le configurateur (dock OBS en file://) peut seulement demander un stinger perso
   if (p === "/api/stinger" && (req.headers.origin === "null" || req.headers.origin?.startsWith("file://"))) {
     res.setHeader("Access-Control-Allow-Origin", req.headers.origin);
@@ -263,6 +273,11 @@ const server = http.createServer(async (req, res) => {
       const f = decodeURIComponent(p.slice(10));
       if (!/^[\w-]+\.png$/.test(f)) return json(res, {}, 400);
       return sendFile(res, path.join(dir, f));
+    }
+    if (p === "/api/library") return json(res, library());
+    if (p === "/api/actions/key") {
+      if (req.headers["x-bl"] !== "1") return json(res, {}, 403);
+      return json(res, { key: hub.config.data.actionsKey });
     }
     if (p === "/api/music/cover") {
       const m = /^data:([\w/+.-]+);base64,(.+)$/.exec(hub.media.coverData(url.searchParams.get("id")) || "");
@@ -343,6 +358,17 @@ const server = http.createServer(async (req, res) => {
     if (p === "/api/stinger") return makeStinger(body, res);
     if (p === "/api/update/check") return json(res, await hub.updater.check());
     if (p === "/api/music") return json(res, { ok: hub.media.command(body.cmd) });
+    if (p === "/api/library/upload") return json(res, saveUpload(body));
+    if (p === "/api/library/delete") {
+      const dir = LIB[body.kind]?.dir, f = path.basename(String(body.file || ""));
+      if (dir && f && fs.existsSync(path.join(dir, f))) fs.unlinkSync(path.join(dir, f));
+      return json(res, library());
+    }
+    if (p === "/api/sound/play") return json(res, { ok: playSound(body.file, body.volume) });
+    if (p === "/api/actions/regenerate") {
+      hub.config.data.actionsKey = crypto.randomBytes(12).toString("hex"); hub.config.flush();
+      return json(res, { key: hub.config.data.actionsKey });
+    }
     if (p === "/api/counter") {
       const c = hub.config.data.counters;
       const id = String(body.id || "").toLowerCase().replace(/[^a-z0-9_-]/g, "").slice(0, 24);
@@ -374,6 +400,75 @@ const server = http.createServer(async (req, res) => {
   }
   res.writeHead(405); res.end();
 });
+
+// ---------- Bibliothèque : sons (sons/) et images (medias/) ajoutés depuis BL Studio ----------
+const LIB = {
+  son: { dir: path.join(ROOT, "sons"), types: { "audio/mpeg": ".mp3", "audio/mp3": ".mp3", "audio/wav": ".wav", "audio/x-wav": ".wav", "audio/wave": ".wav", "audio/ogg": ".ogg", "audio/webm": ".webm" } },
+  image: { dir: path.join(ROOT, "medias"), types: { "image/png": ".png", "image/jpeg": ".jpg", "image/gif": ".gif", "image/webp": ".webp" } },
+};
+for (const l of Object.values(LIB)) fs.mkdirSync(l.dir, { recursive: true });
+function library() {
+  const list = dir => fs.readdirSync(dir).filter(f => !f.startsWith(".")).map(f => ({ file: f, name: f.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " "), size: fs.statSync(path.join(dir, f)).size }));
+  return { sounds: list(LIB.son.dir), images: list(LIB.image.dir), soundboard: hub.config.data.soundboard };
+}
+function saveUpload(body) {
+  const lib = LIB[body.kind];
+  const m = /^data:([\w/+.-]+);base64,(.+)$/s.exec(String(body.dataUrl || ""));
+  if (!lib || !m || !lib.types[m[1]]) return { error: "format non pris en charge" };
+  const buf = Buffer.from(m[2], "base64");
+  if (buf.length > 15 * 1024 * 1024) return { error: "fichier trop lourd (15 Mo maximum)" };
+  const base = String(body.name || "fichier").toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "fichier";
+  let file = base + lib.types[m[1]], n = 2;
+  while (fs.existsSync(path.join(lib.dir, file))) file = `${base}-${n++}${lib.types[m[1]]}`;
+  fs.writeFileSync(path.join(lib.dir, file), buf);
+  return { ok: true, file, ...library() };
+}
+// joue un son sur le stream : diffusé au lecteur « Hub · Sons » (sons.html) présent dans OBS
+function playSound(file, volume) {
+  const f = path.basename(String(file || ""));
+  if (!f || !fs.existsSync(path.join(LIB.son.dir, f))) return false;
+  const pad = hub.config.data.soundboard.pads.find(x => x.file === f);
+  const v = Math.max(0, Math.min(1, volume ?? pad?.volume ?? hub.config.data.soundboard.volume ?? 0.8));
+  hub.broadcast({ kind: "sound", file: f, volume: v });
+  return true;
+}
+hub.playSound = playSound;
+
+// ---------- Actions Stream Deck ----------
+// actions du Hub exécutées ici ; actions OBS relayées à BL Studio (dock OBS) qui pilote OBS
+const OBS_ACTIONS = new Set(["scene", "golive", "stoplive", "mute", "unmute", "togglemute", "transition", "source", "record", "replay"]);
+function runAction(name, q, res) {
+  const key = hub.config.data.actionsKey;
+  const given = Buffer.from(String(q.get("k") || "")), want = Buffer.from(key);
+  if (!key || given.length !== want.length || !crypto.timingSafeEqual(given, want)) return json(res, { error: "clé invalide" }, 403);
+  const c = hub.config.data.counters;
+  switch (name) {
+    case "counter": {
+      const id = String(q.get("id") || "").toLowerCase();
+      if (!c[id]) return json(res, { error: "compteur inconnu" }, 404);
+      if (q.has("set")) c[id].value = parseInt(q.get("set"), 10) || 0; else c[id].value += parseInt(q.get("d") || "1", 10);
+      hub.config.save(); hub.broadcast({ kind: "counters", counters: c });
+      return json(res, { ok: true, value: c[id].value });
+    }
+    case "sound": return json(res, { ok: playSound(q.get("file"), q.has("volume") ? parseFloat(q.get("volume")) : undefined) });
+    case "music": return json(res, { ok: hub.media.command(q.get("cmd") || "toggle") });
+    case "test": {
+      const base = TEST_EVENTS[q.get("type") || "follow"];
+      if (!base) return json(res, { error: "type inconnu" }, 400);
+      hub.emit({ type: q.get("type") || "follow", ...base }); return json(res, { ok: true });
+    }
+    case "say": return json(res, { ok: hub.twitch.say(String(q.get("text") || "").slice(0, 400)) });
+    default: {
+      if (!OBS_ACTIONS.has(name)) return json(res, { error: "action inconnue" }, 404);
+      // une seule appli exécute l'action : le dock OBS de préférence, sinon la dernière ouverte
+      const studios = [...hub.clients].filter(ws => ws.readyState === 1 && ws.studio);
+      const target = studios.sort((a, b) => (b.studio.obs - a.studio.obs) || (b.studio.at - a.studio.at))[0];
+      if (!target) return json(res, { error: "BL Studio n'est pas ouvert dans OBS" }, 503);
+      target.send(JSON.stringify({ kind: "action", action: name, params: Object.fromEntries([...q].filter(([k]) => k !== "k")) }));
+      return json(res, { ok: true });
+    }
+  }
+}
 
 // génère une transition stinger (outils/stinger.py + ffmpeg) : style au choix, couleurs d'un thème ou d'une DA perso
 const STINGER_STYLES = ["bandes", "volets", "iris", "glitch", "eclat", "pixels", "rideau", "losange", "chevrons", "bulles", "barres", "hexa"];
@@ -424,9 +519,13 @@ wss.on("connection", ws => {
   hub.clients.add(ws);
   ws.send(JSON.stringify({ kind: "hello", game: hub.games.view(), status: hub.status(), chat: hub.recentChat.slice(-30), recent: hub.stats.session.recent.slice(0, 10), update: hub.updater.state,
     music: hub.media.view(), counters: hub.config.data.counters, stats: hub.stats.snapshot(), leaderboard: hub.bot.leaderboard(10) }));
+  ws.on("message", raw => {
+    try { const m = JSON.parse(raw); if (m.kind === "studio") ws.studio = { obs: m.obs ? 1 : 0, at: Date.now() }; } catch {}
+  });
   ws.on("close", () => hub.clients.delete(ws));
   ws.on("error", () => {});
 });
+if (!hub.config.data.actionsKey) { hub.config.data.actionsKey = crypto.randomBytes(12).toString("hex"); hub.config.flush(); }
 
 // après une mise à jour, le nouveau Hub attend que l'ancien libère le port
 const RESTARTED = process.argv.includes("--restart");

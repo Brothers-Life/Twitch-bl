@@ -158,8 +158,9 @@
       <div class="row"><label>Lire les messages (voix)</label><input type="checkbox" id="aTts"> <span class="hint">si OBS le permet</span></div>
     </div>
     <h3>Par type d'alerte</h3>
-    <div class="card"><table><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
+    <div class="card" style="overflow-x:auto"><table style="min-width:980px"><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th>Son</th><th>Image</th><th>Animation</th><th>Durée</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
     <div class="row"><button class="btn primary" id="saveAlerts">Enregistrer</button></div>
+    <p class="hint">Sons et images : ajoute-les dans l'onglet Sons (bibliothèque). Une durée à 0 reprend la durée générale.</p>
   </section>
 
   <!-- ======== BOT ======== -->
@@ -386,16 +387,24 @@ $("sayBtn").onclick = sendSay; $("say").onkeydown = e => { if (e.key === "Enter"
 // ---------- Alertes ----------
 const ALABEL = { follow: "Follow (Twitch/TikTok)", sub: "Abonnement Twitch", giftsub: "Abos offerts", bits: "Bits Twitch", raid: "Raid Twitch",
   gift: "Cadeau TikTok (min. diamants)", share: "Partage TikTok", superchat: "Super Chat YouTube", member: "Membre YouTube", donation: "Don (min. €)" };
-function renderAlerts(a) {
+async function renderAlerts(a) {
   $("aOn").checked = a.enabled; $("aDur").value = a.duration; $("aSound").checked = a.sound; $("aVol").value = a.volume; $("aTts").checked = a.tts;
+  let lib = { sounds: [], images: [] };
+  try { lib = await (await fetch("/api/library")).json(); } catch {}
+  const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === (cur || "") ? "selected" : ""}>${esc(l)}</option>`;
   $("aTypes").innerHTML = Object.entries(a.types).map(([k, t]) => `<tr data-k="${k}"><td><input type="checkbox" class="on" ${t.on ? "checked" : ""}></td>
     <td>${ALABEL[k] || k}</td><td><input type="number" class="min" value="${t.min}"></td><td><input type="text" class="text" value="${esc(t.text)}"></td>
+    <td><select class="snd">${opt("", "Carillon", t.sound)}${opt("aucun", "Aucun", t.sound)}${lib.sounds.map(x => opt(x.file, x.name, t.sound)).join("")}</select></td>
+    <td><select class="img">${opt("", "Par défaut", t.image)}${lib.images.map(x => opt(x.file, x.name, t.image)).join("")}</select></td>
+    <td><select class="anim">${opt("", "Celle de la DA", t.anim)}${Object.entries(BL_ALERT_ANIMS).map(([v, l]) => opt(v, l, t.anim)).join("")}</select></td>
+    <td><input type="number" class="dur" min="0" max="60" value="${t.duration || 0}" title="0 = durée générale"></td>
     <td><button class="btn small test">Tester</button></td></tr>`).join("");
   $("aTypes").querySelectorAll(".test").forEach(b => b.onclick = () => post("/api/test", { type: b.closest("tr").dataset.k }));
 }
 $("saveAlerts").onclick = () => {
   const types = {};
-  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value });
+  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value,
+    sound: tr.querySelector(".snd").value, image: tr.querySelector(".img").value, anim: tr.querySelector(".anim").value, duration: +tr.querySelector(".dur").value || 0 });
   saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, "Alertes enregistrées");
 };
 
@@ -509,6 +518,8 @@ async function load() {
 }
 function live() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  // BL Studio s'annonce au Hub pour recevoir les actions Stream Deck (le dock OBS est prioritaire)
+  ws.onopen = () => ws.send(JSON.stringify({ kind: "studio", obs: !!window.obsstudio || /OBS/i.test(navigator.userAgent) }));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.kind === "status") renderLights(m.status);
@@ -516,6 +527,7 @@ function live() {
     if (m.kind === "stats") { S.stats = m.stats; renderStats(m.stats); }
     if (m.kind === "game") renderGame(m.state);
     if (m.kind === "update") renderUpdate(m.update);
+    if (m.kind === "action") dispatchEvent(new CustomEvent("bl-action", { detail: m }));
   };
   ws.onclose = () => setTimeout(live, 3000);
 }

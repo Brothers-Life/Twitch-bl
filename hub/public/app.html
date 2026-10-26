@@ -202,6 +202,25 @@
   .stile.live .badge { position: absolute; top: 8px; left: 8px; padding: 2px 8px; border-radius: 6px; background: var(--ko); color: #fff; font-size: 11px; font-weight: 700; }
   .stile.sel .nm { color: var(--acc); }
   .stile .edit { font-size: 11px; color: var(--mute); font-weight: 400; }
+  .pads { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .pads > p, .libgrid > p { grid-column: 1 / -1; }
+  .pad { border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: var(--panel); }
+  .pad .hit { display: block; width: 100%; height: 76px; border: 0; cursor: pointer; color: #fff; font-weight: 700; font-size: 15px; padding: 8px;
+    background: linear-gradient(135deg, var(--pc, var(--acc)), color-mix(in srgb, var(--pc, var(--acc)) 55%, #000)); text-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .pad .hit:active { transform: scale(.97); }
+  .pad .hit kbd { display: block; font: 600 11px var(--font-ui, sans-serif); opacity: .75; margin-top: 4px; }
+  .pad .opts { display: flex; align-items: center; gap: 6px; padding: 6px 8px; }
+  .pad .opts input[type=range] { flex: 1; min-width: 0; }
+  .pad .opts input[type=color] { width: 26px; height: 22px; border: 0; padding: 0; background: none; }
+  .libgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; margin-top: 8px; }
+  .libitem { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--field, #0e0f12); min-width: 0; }
+  .libitem img { width: 40px; height: 40px; object-fit: cover; border-radius: 6px; flex: none; }
+  .libitem span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sdgroup { margin-bottom: 14px; }
+  .sdrow { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  .sdrow b { flex: 0 0 200px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sdrow code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; }
+  .eqrow { display: grid; grid-template-columns: 54px 1fr 50px; align-items: center; gap: 6px; font-size: 12px; color: var(--mute); }
   .dests { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
   .dest { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
   .dest .dh { display: flex; align-items: center; gap: 8px; }
@@ -342,6 +361,7 @@
   <button data-tab="diffusion" title="Diffusion"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Diffusion</span></button>
   <button data-tab="musique" title="Musique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg><span>Musique</span></button>
   <button data-tab="audio" title="Audio"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/></svg><span>Audio</span></button>
+  <button data-tab="sons" title="Sons"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><path d="M15 14v5M17.5 15.5v2M13 16v1M20 16v1"/></svg><span>Sons</span></button>
   <button data-tab="chat" title="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
   <span class="sep"></span><span class="grp">Communauté</span>
   <button data-tab="alerts" title="Alertes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span>Alertes</span></button>
@@ -355,6 +375,7 @@
   <button data-tab="textes" title="Textes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg><span>Textes</span></button>
   <button data-tab="transitions" title="Transitions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h5L7 20H2zM17 4h5l-5 16h-5z"/></svg><span>Transitions</span></button>
   <span class="sep"></span><span class="grp">Réglages</span>
+  <button data-tab="streamdeck" title="Stream Deck"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2.5"/><rect x="6" y="8" width="3" height="3" rx=".5"/><rect x="10.5" y="8" width="3" height="3" rx=".5"/><rect x="15" y="8" width="3" height="3" rx=".5"/><rect x="6" y="13" width="3" height="3" rx=".5"/><rect x="10.5" y="13" width="3" height="3" rx=".5"/><rect x="15" y="13" width="3" height="3" rx=".5"/></svg><span>Stream Deck</span></button>
   <button data-tab="conn" title="Connexions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/></svg><span>Connexions</span></button>
 </nav>
 <div class="sidefoot">
@@ -562,6 +583,42 @@
     </div>
     </section>
 
+    <section id="tab-sons" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Soundboard</h3>
+      <div class="row"><button class="btn primary" id="sbInstall">Installer le lecteur de sons dans OBS</button><span class="hint" id="sbInfo"></span></div>
+      <p class="hint" style="margin-top:0">Clic sur un pad pour le jouer en live. Touches 1 à 9 du clavier quand cet onglet est ouvert. Stream Deck : onglet Stream Deck.</p>
+      <div class="pads" id="pads"></div>
+      <h3>Bibliothèque</h3>
+      <div class="card">
+        <div class="row"><label class="btn" style="margin:0">+ Ajouter des sons<input type="file" id="upSound" accept="audio/mpeg,audio/wav,audio/ogg,.mp3,.wav,.ogg" multiple hidden></label>
+          <label class="btn" style="margin:0">+ Ajouter des images ou GIF<input type="file" id="upImg" accept="image/png,image/jpeg,image/gif,image/webp" multiple hidden></label></div>
+        <p class="hint" style="margin:0">Sons : MP3, WAV, OGG. Images : PNG, JPG, GIF animé, WebP. 15 Mo maximum. Sons et images servent aussi aux alertes (onglet Alertes).</p>
+        <div class="libgrid" id="libList"></div>
+      </div>
+      <h3>Sons dans le chat</h3>
+      <div class="card">
+        <label class="row" style="margin:0"><input type="checkbox" id="sbChat"> Les spectateurs peuvent jouer un son avec <code>!son nom</code> (payé en points)</label>
+        <div class="row"><label>Prix en points</label><input type="number" id="sbCost" min="0" style="max-width:120px"></div>
+        <div class="row"><label>Volume par défaut</label><input type="range" id="sbVol" min="0" max="1" step="0.05"></div>
+      </div>
+    </div>
+    </section>
+
+    <section id="tab-streamdeck" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Raccourcis Stream Deck</h3>
+      <div class="card">
+        <p class="hint" style="margin-top:0">Dans l'appli Stream Deck : action <b>Système → Site web</b> sur une touche, colle l'URL, coche <b>Requête GET en arrière-plan</b>.
+          Les actions OBS passent par BL Studio : garde le dock ouvert dans OBS. Le plugin OBS officiel du Stream Deck reste utilisable en plus.</p>
+        <div class="row" style="margin-bottom:0"><button class="btn small" id="sdRegen">Changer la clé</button><span class="hint">Les URL contiennent une clé secrète : ne les partage pas. Changer la clé désactive toutes les anciennes.</span></div>
+      </div>
+      <div id="sdList"></div>
+    </div>
+    </section>
+
     <section id="tab-diffusion" class="needs-obs">
       <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
       <div class="obs-body">
@@ -680,8 +737,9 @@
       <div class="row"><label>Lire les messages (voix)</label><input type="checkbox" id="aTts"> <span class="hint">si OBS le permet</span></div>
     </div>
     <h3>Par type d'alerte</h3>
-    <div class="card"><table><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
+    <div class="card" style="overflow-x:auto"><table style="min-width:980px"><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th>Son</th><th>Image</th><th>Animation</th><th>Durée</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
     <div class="row"><button class="btn primary" id="saveAlerts">Enregistrer</button></div>
+    <p class="hint">Sons et images : ajoute-les dans l'onglet Sons (bibliothèque). Une durée à 0 reprend la durée générale.</p>
   </section>
 
   <!-- ======== BOT ======== -->
@@ -915,16 +973,24 @@ $("sayBtn").onclick = sendSay; $("say").onkeydown = e => { if (e.key === "Enter"
 // ---------- Alertes ----------
 const ALABEL = { follow: "Follow (Twitch/TikTok)", sub: "Abonnement Twitch", giftsub: "Abos offerts", bits: "Bits Twitch", raid: "Raid Twitch",
   gift: "Cadeau TikTok (min. diamants)", share: "Partage TikTok", superchat: "Super Chat YouTube", member: "Membre YouTube", donation: "Don (min. €)" };
-function renderAlerts(a) {
+async function renderAlerts(a) {
   $("aOn").checked = a.enabled; $("aDur").value = a.duration; $("aSound").checked = a.sound; $("aVol").value = a.volume; $("aTts").checked = a.tts;
+  let lib = { sounds: [], images: [] };
+  try { lib = await (await fetch("/api/library")).json(); } catch {}
+  const opt = (v, l, cur) => `<option value="${esc(v)}" ${v === (cur || "") ? "selected" : ""}>${esc(l)}</option>`;
   $("aTypes").innerHTML = Object.entries(a.types).map(([k, t]) => `<tr data-k="${k}"><td><input type="checkbox" class="on" ${t.on ? "checked" : ""}></td>
     <td>${ALABEL[k] || k}</td><td><input type="number" class="min" value="${t.min}"></td><td><input type="text" class="text" value="${esc(t.text)}"></td>
+    <td><select class="snd">${opt("", "Carillon", t.sound)}${opt("aucun", "Aucun", t.sound)}${lib.sounds.map(x => opt(x.file, x.name, t.sound)).join("")}</select></td>
+    <td><select class="img">${opt("", "Par défaut", t.image)}${lib.images.map(x => opt(x.file, x.name, t.image)).join("")}</select></td>
+    <td><select class="anim">${opt("", "Celle de la DA", t.anim)}${Object.entries(BL_ALERT_ANIMS).map(([v, l]) => opt(v, l, t.anim)).join("")}</select></td>
+    <td><input type="number" class="dur" min="0" max="60" value="${t.duration || 0}" title="0 = durée générale"></td>
     <td><button class="btn small test">Tester</button></td></tr>`).join("");
   $("aTypes").querySelectorAll(".test").forEach(b => b.onclick = () => post("/api/test", { type: b.closest("tr").dataset.k }));
 }
 $("saveAlerts").onclick = () => {
   const types = {};
-  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value });
+  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value,
+    sound: tr.querySelector(".snd").value, image: tr.querySelector(".img").value, anim: tr.querySelector(".anim").value, duration: +tr.querySelector(".dur").value || 0 });
   saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, "Alertes enregistrées");
 };
 
@@ -1038,6 +1104,8 @@ async function load() {
 }
 function live() {
   const ws = new WebSocket(`ws://${location.host}/ws`);
+  // BL Studio s'annonce au Hub pour recevoir les actions Stream Deck (le dock OBS est prioritaire)
+  ws.onopen = () => ws.send(JSON.stringify({ kind: "studio", obs: !!window.obsstudio || /OBS/i.test(navigator.userAgent) }));
   ws.onmessage = e => {
     const m = JSON.parse(e.data);
     if (m.kind === "status") renderLights(m.status);
@@ -1045,6 +1113,7 @@ function live() {
     if (m.kind === "stats") { S.stats = m.stats; renderStats(m.stats); }
     if (m.kind === "game") renderGame(m.state);
     if (m.kind === "update") renderUpdate(m.update);
+    if (m.kind === "action") dispatchEvent(new CustomEvent("bl-action", { detail: m }));
   };
   ws.onclose = () => setTimeout(live, 3000);
 }
@@ -1146,7 +1215,9 @@ async function refreshAll() {
   current = sl.currentProgramSceneName;
   if (!scenes.includes(selected)) selected = current;
   inputs = (await call("GetInputList")).inputs;
-  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests(); renderAuto(); renderMusic(); renderCounters(); renderTemplates(); renderTransCreator(); renderAudio(); renderLumas();
+  // seulement l'essentiel ici ; chaque onglet se charge quand on l'ouvre (TAB_RENDER)
+  renderScenes(); renderDA(); loadIdentity(); renderDests();
+  renderTab(document.querySelector("main > section.on")?.id.slice(4));
 }
 
 let linkV = store("bl_linkv") ?? true;
@@ -1776,6 +1847,9 @@ async function stopAll() { for (const d of dests) if (d.live !== false) { try { 
 $("goLive").onclick = async () => {
   if (!confirm(ap.on ? `Lancer le live partout ?\n\nPilote automatique : « ${ap.start} » avec ${ap.min} min de compte à rebours, puis « ${ap.after} ».`
                      : "Lancer le live sur toutes les plateformes configurées ?")) return;
+  goLiveFlow();
+};
+async function goLiveFlow() {
   clearTimeout(apTimer);
   if (ap.on) { await goScene(ap.start); if (ap.min > 0) await setCountdowns(ap.min); }
   await startAll();
@@ -1786,9 +1860,12 @@ $("goLive").onclick = async () => {
     $("apInfo").textContent = `Passage sur « ${ap.after} » à ${new Date(Date.now() + ap.min * 60000).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}.`;
     apTimer = setTimeout(() => { if (current === ap.start) goScene(ap.after); $("apInfo").textContent = ""; }, ap.min * 60000);
   }
-};
+}
 $("stopLive").onclick = async () => {
   if (!confirm(ap.on ? `Terminer le live ?\n\nPilote automatique : « ${ap.end} », message de fin, puis arrêt des flux dans ${ap.endSec} s.` : "Arrêter le live partout ?")) return;
+  stopLiveFlow();
+};
+async function stopLiveFlow() {
   clearTimeout(apTimer);
   if (!ap.on || !ap.endSec) { await stopAll(); toast("Live arrêté"); return setTimeout(renderDests, 2500); }
   await goScene(ap.end);
@@ -1800,7 +1877,7 @@ $("stopLive").onclick = async () => {
     clearInterval(tick); $("apInfo").textContent = "";
     stopAll().then(() => { toast("Live terminé"); setTimeout(renderDests, 2500); });
   }, 1000);
-};
+}
 // suivi du jeu : seulement pendant le live, et seulement depuis les scènes « jeu » / « jeu fermé »
 setInterval(async () => {
   if (!ap.on || !ap.game || !ap.proc || !dests.some(d => d.live)) return;
@@ -2050,6 +2127,10 @@ async function renderAudio() {
       ${global ? `<p class="hint" style="margin:4px 0">Source globale : présente dans toutes les scènes (OBS > Paramètres > Audio).</p>`
         : `<details><summary class="hint">Présente dans ${a.scenes.length} scène(s)</summary><div class="scenechecks">${scenes.map(sc =>
             `<label><input type="checkbox" data-sc="${esc(sc)}" ${a.scenes.includes(sc) ? "checked" : ""}>${esc(sc)}</label>`).join("")}</div></details>`}
+      <div class="row"><label>Effet</label><select data-fx><option value="">Aucun</option>${Object.entries(isMic ? FX_VOICE : FX_OUT).map(([k, f]) =>
+        `<option value="${k}" ${fxOf(a) === k ? "selected" : ""}>${esc(f.label)}</option>`).join("")}</select></div>
+      <details><summary class="hint">Égaliseur</summary>${["low", "mid", "high"].map(b => `<div class="eqrow"><span>${{ low: "Graves", mid: "Médiums", high: "Aigus" }[b]}</span>
+        <input type="range" min="-20" max="20" step="0.5" value="${eqOf(a)[b]}" data-eq="${b}"><span>${eqOf(a)[b] > 0 ? "+" : ""}${eqOf(a)[b]} dB</span></div>`).join("")}</details>
       <div class="chips">${a.filters.map(f => `<span class="chip2">${esc(f.filterName)}<a data-delf="${esc(f.filterName)}" title="Retirer">✕</a></span>`).join("")}</div>
       <div class="row" style="margin-bottom:0">${isMic ? `<button class="btn small" data-preset="micro">Micro pro</button>` : `<button class="btn small" data-preset="duck">Baisser quand je parle</button>`}
         ${global ? "" : `<button class="btn small danger" data-del>Supprimer</button>`}</div>
@@ -2086,6 +2167,15 @@ async function renderAudio() {
       toast(`${a.name} : ${cb.checked ? "ajoutée à" : "retirée de"} ${sc}`);
     });
     card.querySelectorAll("[data-delf]").forEach(x => x.onclick = async () => { await call("RemoveSourceFilter", { sourceName: a.name, filterName: x.dataset.delf }); renderAudio(); });
+    q("[data-fx]").onchange = async e => { await applyFx(a, e.target.value); renderAudio(); };
+    card.querySelectorAll("[data-eq]").forEach(r => {
+      r.oninput = () => { r.nextElementSibling.textContent = `${+r.value > 0 ? "+" : ""}${r.value} dB`; };
+      r.onchange = async () => {
+        const settings = Object.fromEntries([...card.querySelectorAll("[data-eq]")].map(x => [x.dataset.eq, +x.value]));
+        if (a.filters.some(f => f.filterName === "Égaliseur")) await call("SetSourceFilterSettings", { sourceName: a.name, filterName: "Égaliseur", filterSettings: settings });
+        else { await call("CreateSourceFilter", { sourceName: a.name, filterName: "Égaliseur", filterKind: "basic_eq_filter", filterSettings: settings }); a.filters.push({ filterName: "Égaliseur", filterSettings: settings }); }
+      };
+    });
     q("[data-preset]").onclick = async e => {
       const have = new Set(a.filters.map(f => f.filterName));
       const add = (filterName, filterKind, filterSettings) => have.has(filterName) ? null
@@ -2173,6 +2263,34 @@ $("auAdd").onclick = async () => {
     toast(`« ${name} » ajoutée${scope === "@all" ? " à toutes les scènes" : ` à ${scope}`}`);
   } catch (e) { toast("Ajout impossible : " + e.message); }
 };
+// effets prêts à l'emploi : chaînes de filtres OBS natifs (égaliseur 3 bandes, compresseur, gain, limiteur)
+const FX_VOICE = {
+  studio:    { label: "Voix studio (radio pro)", chain: [["basic_eq_filter", { low: 2, mid: 1, high: 3 }], ["compressor_filter", { ratio: 3, threshold: -20, attack_time: 6, release_time: 60 }], ["limiter_filter", { threshold: -2 }]] },
+  grave:     { label: "Voix grave et chaude", chain: [["basic_eq_filter", { low: 8, mid: 1, high: -4 }], ["compressor_filter", { ratio: 3, threshold: -22 }]] },
+  claire:    { label: "Voix claire et brillante", chain: [["basic_eq_filter", { low: -5, mid: 2, high: 8 }]] },
+  radio:     { label: "Vieille radio", chain: [["basic_eq_filter", { low: -20, mid: 7, high: -12 }], ["compressor_filter", { ratio: 8, threshold: -26 }], ["gain_filter", { db: 4 }]] },
+  telephone: { label: "Téléphone / talkie-walkie", chain: [["basic_eq_filter", { low: -20, mid: 9, high: -20 }], ["gain_filter", { db: 3 }]] },
+  megaphone: { label: "Mégaphone", chain: [["basic_eq_filter", { low: -20, mid: 12, high: -6 }], ["compressor_filter", { ratio: 14, threshold: -32 }], ["gain_filter", { db: 6 }]] },
+  lointain:  { label: "Voix lointaine", chain: [["basic_eq_filter", { low: -10, mid: -4, high: -14 }], ["gain_filter", { db: -8 }]] },
+};
+const FX_OUT = {
+  basses:    { label: "Basses boostées", chain: [["basic_eq_filter", { low: 8, mid: 0, high: 1 }]] },
+  normal:    { label: "Volume régulier (normaliser)", chain: [["compressor_filter", { ratio: 4, threshold: -24, attack_time: 10, release_time: 200 }], ["limiter_filter", { threshold: -3 }]] },
+  douce:     { label: "Son doux (aigus réduits)", chain: [["basic_eq_filter", { low: 1, mid: 0, high: -8 }]] },
+  fond:      { label: "Fond discret", chain: [["basic_eq_filter", { low: -4, mid: -6, high: -4 }], ["gain_filter", { db: -10 }]] },
+};
+const fxOf = a => (a.filters.find(f => f.filterName.startsWith("Effet · ")) || {}).filterName?.split(" · ")[1] || "";
+const eqOf = a => ({ low: 0, mid: 0, high: 0, ...(a.filters.find(f => f.filterName === "Égaliseur")?.filterSettings || {}) });
+async function applyFx(a, key) {
+  for (const f of a.filters.filter(f => f.filterName.startsWith("Effet · "))) await call("RemoveSourceFilter", { sourceName: a.name, filterName: f.filterName }).catch(() => {});
+  const fx = (FX_VOICE[key] || FX_OUT[key]);
+  if (!fx) return toast(`${a.name} : effet retiré`);
+  let i = 1;
+  for (const [kind, settings] of fx.chain)
+    await call("CreateSourceFilter", { sourceName: a.name, filterName: `Effet · ${key} · ${i++}`, filterKind: kind, filterSettings: settings }).catch(e => toast(e.message));
+  toast(`${a.name} : effet « ${fx.label} »`);
+}
+
 // vu-mètres : événement InputVolumeMeters (≈ 20 fois par seconde)
 function onMeters(list) {
   for (const it of list) {
@@ -2213,6 +2331,139 @@ async function renderLumas() {
   });
 }
 
+// ---------- Onglet Sons : soundboard + bibliothèque ----------
+let lib = { sounds: [], images: [], soundboard: { pads: [], chat: false, cost: 100, volume: 0.8 } };
+const PAD_COLORS = ["#de9425", "#e5484d", "#7c5cff", "#18b8a6", "#3b82f6", "#ec4899", "#84cc16", "#f97316"];
+async function loadLib() { try { lib = await (await fetch(HUB + "/api/library")).json(); } catch {} return lib; }
+const savePads = () => hubPost("/api/config", { section: "soundboard", data: lib.soundboard });
+async function renderSounds() {
+  await loadLib();
+  const sb = lib.soundboard;
+  // chaque son de la bibliothèque a son pad
+  for (const s of lib.sounds) if (!sb.pads.some(p => p.file === s.file)) sb.pads.push({ file: s.file, label: s.name, volume: sb.volume ?? 0.8, color: PAD_COLORS[sb.pads.length % PAD_COLORS.length] });
+  sb.pads = sb.pads.filter(p => lib.sounds.some(s => s.file === p.file));
+  $("pads").innerHTML = sb.pads.map((p, i) => `<div class="pad" style="--pc:${esc(p.color)}"><button class="hit" data-play="${i}">${esc(p.label)}${i < 9 ? `<kbd>touche ${i + 1}</kbd>` : ""}</button>
+      <div class="opts"><input type="color" value="${esc(p.color)}" data-col="${i}" title="Couleur"><input type="range" min="0" max="1" step="0.05" value="${p.volume}" data-vol="${i}" title="Volume">
+      <button class="btn small" data-ren="${i}" title="Renommer">✎</button></div></div>`).join("") || `<p class="hint">Ajoute des sons dans la bibliothèque ci-dessous : ils deviennent des pads.</p>`;
+  $("pads").querySelectorAll("[data-play]").forEach(b => b.onclick = () => playPad(+b.dataset.play));
+  $("pads").querySelectorAll("[data-vol]").forEach(r => r.onchange = () => { sb.pads[+r.dataset.vol].volume = +r.value; savePads(); });
+  $("pads").querySelectorAll("[data-col]").forEach(c => c.onchange = () => { sb.pads[+c.dataset.col].color = c.value; savePads(); renderSounds(); });
+  $("pads").querySelectorAll("[data-ren]").forEach(b => b.onclick = () => {
+    const pad = sb.pads[+b.dataset.ren], n = prompt("Nom du pad (utilisé aussi par !son dans le chat)", pad.label);
+    if (n && n.trim()) { pad.label = n.trim().slice(0, 30); savePads(); renderSounds(); }
+  });
+  $("libList").innerHTML = [...lib.sounds.map(x => ({ ...x, kind: "son" })), ...lib.images.map(x => ({ ...x, kind: "image" }))].map(x => `<div class="libitem">
+      ${x.kind === "image" ? `<img src="${HUB}/medias/${encodeURIComponent(x.file)}" alt="">` : `<button class="btn small" data-prev="${esc(x.file)}" title="Écouter ici">▶</button>`}
+      <span title="${esc(x.file)}">${esc(x.name)}</span><small class="hint">${Math.max(1, Math.round(x.size / 1024))} Ko</small>
+      <button class="btn small danger" data-del="${esc(x.file)}" data-kind="${x.kind}" title="Supprimer">✕</button></div>`).join("") || `<p class="hint">Bibliothèque vide.</p>`;
+  $("libList").querySelectorAll("[data-prev]").forEach(b => b.onclick = () => new Audio(`${HUB}/sons/${encodeURIComponent(b.dataset.prev)}`).play());
+  $("libList").querySelectorAll("[data-del]").forEach(b => b.onclick = async () => {
+    if (!confirm(`Supprimer « ${b.dataset.del} » ?`)) return;
+    await hubPost("/api/library/delete", { kind: b.dataset.kind, file: b.dataset.del }); renderSounds();
+  });
+  $("sbChat").checked = !!sb.chat; $("sbCost").value = sb.cost ?? 100; $("sbVol").value = sb.volume ?? 0.8;
+  const has = inputs.some(i => /sons\.html/.test(i.inputName) || i.inputName === "Hub · Sons");
+  $("sbInstall").hidden = has; $("sbInfo").textContent = has ? "Lecteur de sons installé dans OBS." : "Installe-le une fois pour que les sons passent dans le live.";
+  savePads();
+}
+async function playPad(i) {
+  const p = lib.soundboard.pads[i];
+  if (!p) return;
+  const r = await hubPost("/api/sound/play", { file: p.file, volume: p.volume });
+  if (!r.ok) toast("Son introuvable");
+}
+async function uploadFiles(files, kind) {
+  for (const f of files) {
+    const dataUrl = await new Promise(ok => { const rd = new FileReader(); rd.onload = () => ok(rd.result); rd.readAsDataURL(f); });
+    const r = await hubPost("/api/library/upload", { kind, name: f.name.replace(/\.[^.]+$/, ""), dataUrl });
+    toast(r.ok ? `« ${f.name} » ajouté` : `${f.name} : ${r.error}`);
+  }
+  renderSounds();
+}
+$("upSound").onchange = e => { uploadFiles([...e.target.files], "son"); e.target.value = ""; };
+$("upImg").onchange = e => { uploadFiles([...e.target.files], "image"); e.target.value = ""; };
+$("sbChat").onchange = e => { lib.soundboard.chat = e.target.checked; savePads(); };
+$("sbCost").onchange = e => { lib.soundboard.cost = Math.max(0, +e.target.value || 0); savePads(); };
+$("sbVol").onchange = e => { lib.soundboard.volume = +e.target.value; savePads(); };
+$("sbInstall").onclick = async () => {
+  const sceneName = globalScene() || current;
+  await call("CreateInput", { sceneName, inputName: "Hub · Sons", inputKind: "browser_source",
+    inputSettings: { url: `${FILE_BASE}sons.html`, width: 16, height: 16, reroute_audio: true }, sceneItemEnabled: true });
+  await call("SetInputAudioMonitorType", { inputName: "Hub · Sons", monitorType: "OBS_MONITORING_TYPE_MONITOR_AND_OUTPUT" }).catch(() => {});
+  await refreshAll();
+  toast(`Lecteur de sons ajouté à « ${sceneName} » (tu l'entends aussi dans ton casque)`);
+};
+addEventListener("keydown", e => {
+  if (!document.querySelector("#tab-sons.on") || /input|textarea|select/i.test(e.target.tagName) || e.ctrlKey || e.altKey) return;
+  if (/^[1-9]$/.test(e.key)) playPad(+e.key - 1);
+});
+
+// ---------- Onglet Stream Deck ----------
+let sdKey = "";
+async function renderDeck() {
+  try { sdKey = (await (await fetch(HUB + "/api/actions/key", { headers: { "X-BL": "1" } })).json()).key || ""; } catch {}
+  await loadLib();
+  const u = (name, params = {}) => `http://127.0.0.1:3939/action/${name}?k=${sdKey}` + Object.entries(params).map(([k, v]) => `&${k}=${encodeURIComponent(v)}`).join("");
+  const mic = (await call("GetSpecialInputs").catch(() => ({}))).mic1;
+  const counters = (await (await fetch(HUB + "/api/state")).json()).config.counters || {};
+  const { transitions } = await call("GetSceneTransitionList").catch(() => ({ transitions: [] }));
+  const groups = [
+    ["Live", [["Lancer le live (pilote automatique)", u("golive")], ["Terminer le live", u("stoplive")], ["Enregistrement marche / arrêt", u("record")], ["Sauver le replay", u("replay")]]],
+    ["Scènes", scenes.map(n => [n, u("scene", { name: n })])],
+    ["Audio", [...(mic ? [[`Couper / réactiver « ${mic} »`, u("togglemute", { source: mic })]] : []),
+      ...inputs.filter(isAudio).filter(i => i.inputName !== mic).map(i => [`Couper / réactiver « ${i.inputName} »`, u("togglemute", { source: i.inputName })])]],
+    ["Sons", lib.soundboard.pads.map(p => [p.label, u("sound", { file: p.file })])],
+    ["Compteurs", Object.entries(counters).flatMap(([id, c]) => [[`${c.label} +1`, u("counter", { id, d: 1 })], [`${c.label} −1`, u("counter", { id, d: -1 })], [`${c.label} à zéro`, u("counter", { id, set: 0 })]])],
+    ["Musique", [["Lecture / pause", u("music", { cmd: "toggle" })], ["Morceau suivant", u("music", { cmd: "next" })], ["Morceau précédent", u("music", { cmd: "prev" })]]],
+    ["Transitions", transitions.map(t => [t.transitionName, u("transition", { name: t.transitionName })])],
+    ["Alertes de test", Object.entries({ follow: "Follow", sub: "Abonnement", bits: "Bits", raid: "Raid", donation: "Don", gift: "Cadeau TikTok", superchat: "Super Chat" }).map(([k, l]) => [l, u("test", { type: k })])],
+  ];
+  $("sdList").innerHTML = groups.filter(([, rows]) => rows.length).map(([g, rows]) => `<div class="sdgroup"><h3>${esc(g)}</h3><div class="card" style="padding:4px 14px">
+    ${rows.map(([l, url]) => `<div class="sdrow"><b title="${esc(l)}">${esc(l)}</b><code>${esc(url)}</code><button class="btn small" data-copy="${esc(url)}">Copier</button></div>`).join("")}</div></div>`).join("");
+  $("sdList").querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+    try { await navigator.clipboard.writeText(b.dataset.copy); toast("URL copiée : colle-la dans le Stream Deck"); }
+    catch { const t = document.createElement("textarea"); t.value = b.dataset.copy; document.body.appendChild(t); t.select(); document.execCommand("copy"); t.remove(); toast("URL copiée"); }
+  });
+}
+$("sdRegen").onclick = async () => {
+  if (!confirm("Changer la clé ? Toutes les touches Stream Deck déjà réglées devront être recollées.")) return;
+  await hubPost("/api/actions/regenerate", {}); renderDeck(); toast("Nouvelle clé : recolle les URL dans le Stream Deck");
+};
+
+// actions Stream Deck relayées par le Hub (dashboard → événement « bl-action »)
+addEventListener("bl-action", async ev => {
+  const { action, params = {} } = ev.detail || {};
+  try {
+    if (action === "scene" && scenes.includes(params.name)) await call("SetCurrentProgramScene", { sceneName: params.name });
+    else if (action === "golive") goLiveFlow();
+    else if (action === "stoplive") stopLiveFlow();
+    else if (["mute", "unmute", "togglemute"].includes(action)) {
+      const source = params.source || (await call("GetSpecialInputs")).mic1;
+      if (action === "togglemute") await call("ToggleInputMute", { inputName: source });
+      else await call("SetInputMute", { inputName: source, inputMuted: action === "mute" });
+    } else if (action === "transition") await call("SetCurrentSceneTransition", { transitionName: params.name });
+    else if (action === "source") {
+      const { sceneItemId } = await call("GetSceneItemId", { sceneName: current, sourceName: params.name });
+      const { sceneItemEnabled } = await call("GetSceneItemEnabled", { sceneName: current, sceneItemId });
+      await call("SetSceneItemEnabled", { sceneName: current, sceneItemId, sceneItemEnabled: !sceneItemEnabled });
+    } else if (action === "record") await call("ToggleRecord");
+    else if (action === "replay") await call("SaveReplayBuffer");
+  } catch (e) { toast(`Stream Deck : ${e.message}`); }
+});
+
+// ---------- Onglets chargés à la demande (l'appli ne charge que ce qui est affiché) ----------
+const TAB_RENDER = {
+  scenes: async () => { await renderItems(); renderTemplates(); refreshThumbs(); }, widgets: renderWidgets, textes: renderTexts,
+  transitions: async () => { await renderTransitions(); renderStingers(); renderTransCreator(); renderLumas(); },
+  diffusion: () => { renderDests(); renderAuto(); }, musique: () => { renderMusic(); renderCounters(); }, audio: renderAudio,
+  sons: renderSounds, streamdeck: renderDeck, identite: loadIdentity, da: renderDA,
+};
+function renderTab(tab) {
+  if (!TAB_RENDER[tab] || !ws || ws.readyState !== 1 || !scenes.length) return;
+  Promise.resolve().then(TAB_RENDER[tab]).catch(() => {});
+}
+addEventListener("bl-tab", e => renderTab(e.detail));
+
 // ---------- Onglet Transitions ----------
 async function renderTransitions() {
   const { transitions, currentSceneTransitionName } = await call("GetSceneTransitionList");
@@ -2247,6 +2498,7 @@ document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
   document.querySelectorAll("nav button, main > section").forEach(x => x.classList.remove("on"));
   b.classList.add("on"); document.getElementById("tab-" + b.dataset.tab).classList.add("on");
   document.getElementById("pageTitle").textContent = b.querySelector("span")?.textContent || "";
+  dispatchEvent(new CustomEvent("bl-tab", { detail: b.dataset.tab }));
   window.scrollTo(0, 0);
   try { localStorage.setItem("bl_tab", b.dataset.tab); } catch {}
   if (b.dataset.tab === "chat") document.getElementById("chat").scrollTop = 1e9;

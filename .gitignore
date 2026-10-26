@@ -15,3 +15,6 @@ outils/branding.py
 __pycache__/
 # Programmes compilés : construits par outils/publier.py
 hub/media/*.exe
+# Sons et images ajoutés par la chaîne (soundboard, alertes)
+sons/
+medias/

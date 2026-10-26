@@ -7,7 +7,7 @@ const https = require("https");
 const { spawn, execFile } = require("child_process");
 
 // jamais écrasés par une mise à jour (réglages, jetons, points, logo, stingers générés…)
-const KEEP = [/^hub\/data\//, /^logo\.png$/, /^logo-original\.png$/, /^nowplaying\.js$/, /^transitions\/stinger_custom_/];
+const KEEP = [/^sons\//, /^medias\//, /^hub\/data\//, /^logo\.png$/, /^logo-original\.png$/, /^nowplaying\.js$/, /^transitions\/stinger_custom_/];
 const CHECK_EVERY = 6 * 3600 * 1000;
 
 function get(url, { json = false, file = null, hops = 5 } = {}) {

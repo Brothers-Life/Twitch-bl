@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>BL Studio - Sons</title>
+<!--
+  Lecteur de la soundboard (source navigateur OBS, invisible). Joue les sons demandés par BL Studio, le Stream Deck ou le chat.
+  Dans OBS, cocher « Contrôler l'audio via OBS » pour régler son volume dans la table de mixage. Nécessite le BL Hub.
+-->
+<script src="hub-client.js"></script>
+<style>html, body { margin: 0; background: transparent; }</style>
+</head>
+<body>
+<script>
+  blHub(m => {
+    if (m.kind !== "sound") return;
+    const a = new Audio(`sons/${encodeURIComponent(m.file)}`);
+    a.volume = m.volume ?? 0.8;
+    a.play().catch(() => {});
+  });
+</script>
+</body>
+</html>
