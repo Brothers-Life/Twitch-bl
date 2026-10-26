@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>BL Chat unifié</title>
+<!--
+  Chat Twitch + TikTok + YouTube réunis (nécessite le BL Hub).
+  URL : theme=…  style=carte|verre|neon|gta|minimal|plein
+        plateformes=twitch,tiktok,youtube   max=10   fade=40 (s, 0 = jamais)   bot=1 (réponses du bot)
+        evenements=1 (affiche aussi follows/cadeaux en ligne)   taille=1 (taille du texte)
+  Taille conseillée : 520 × 700 (paysage) ou 800 × 900 (vertical).
+-->
+<script src="theme.js"></script>
+<script src="hub-client.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; color: #fff; font-family: var(--font-body); }
+  body { --u: .16vw; }
+  #list { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: calc(1.4vw * var(--t)); padding: 2vw; }
+  .msg { padding: calc(1.5vw * var(--t)) calc(2.4vw * var(--t)); font-size: calc(4vw * var(--t)); line-height: 1.32; word-wrap: break-word;
+    animation: bl-in-left .35s ease-out; transition: opacity .8s, transform .8s; }
+  .msg.old { opacity: 0; transform: translateX(-6%); }
+  .head { display: flex; align-items: center; gap: 1.6vw; margin-bottom: .4vw; }
+  .tag { font-size: .62em; font-weight: 800; letter-spacing: .06em; padding: .2em .55em; border-radius: .4em; color: #fff; }
+  .name { font-weight: 700; }
+  .mod::after { content: " 🛡"; font-size: .8em; }
+  .event { border-left-color: var(--c1) !important; font-style: italic; }
+  .event .text { color: var(--c1); }
+  body.style-plein .tag { color: #fff; }
+</style>
+</head>
+<body>
+<div id="list"></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  blTheme(q); blStyle(q);
+  document.body.style.setProperty("--t", q.get("taille") || "1");
+  const PLAT = (q.get("plateformes") || "twitch,tiktok,youtube").split(",");
+  const MAX = +(q.get("max") || 10), FADE = +(q.get("fade") || 40);
+  const SHOW_BOT = q.get("bot") !== "0", SHOW_EVENTS = q.get("evenements") === "1";
+  const list = document.getElementById("list");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const EV = { follow: "suit la chaîne", sub: "s'abonne", gift: "envoie un cadeau", share: "partage le live", superchat: "envoie un Super Chat",
+    member: "devient membre", donation: "fait un don", bits: "envoie des bits", raid: "lance un raid", giftsub: "offre des abonnements" };
+
+  function add(e) {
+    const isEvent = e.type !== "chat";
+    if (isEvent && (!SHOW_EVENTS || !EV[e.type])) return;
+    if (e.platform === "bot" ? !SHOW_BOT : !PLAT.includes(e.platform)) return;
+    const p = BL_PLATFORMS[e.platform] || { short: "?", color: "#555" };
+    const div = document.createElement("div");
+    div.className = `msg${isEvent ? " event" : ""}`;
+    const color = e.color || (e.platform === "bot" ? "var(--c2)" : "var(--c1)");
+    div.innerHTML = `<div class="head"><span class="tag" style="background:${p.color}">${p.short}</span>
+      <span class="name${e.mod ? " mod" : ""}" style="color:${color}">${esc(e.user)}</span></div>
+      <div class="text">${isEvent ? `${EV[e.type]}${e.gift ? ` : ${esc(e.amount)}× ${esc(e.gift)}` : e.amount ? ` (${esc(e.amountText || e.amount)})` : ""}` : esc(e.message)}</div>`;
+    list.appendChild(div);
+    while (list.children.length > MAX) list.firstChild.remove();
+    if (FADE > 0) setTimeout(() => { div.classList.add("old"); setTimeout(() => div.remove(), 800); }, FADE * 1000);
+  }
+
+  blHub(m => {
+    if (m.kind === "hello") { list.innerHTML = ""; (m.chat || []).slice(-MAX).forEach(add); }
+    if (m.kind === "event") add(m.event);
+  });
+</script>
+</body>
+</html>

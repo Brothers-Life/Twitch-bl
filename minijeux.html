@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>BL Mini-jeux</title>
+<!--
+  Affiche le mini-jeu en cours (quiz, course, sondage, devine, roue) et les résultats de !roulette.
+  Nécessite le BL Hub ; les jeux se lancent depuis le dashboard. Source plein écran (1920 × 1080 ou 1080 × 1920).
+  URL : theme=…  style=carte|verre|neon|gta|minimal|plein
+-->
+<script src="theme.js"></script>
+<script src="hub-client.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; color: #fff; font-family: var(--font-body); }
+  body { --u: .12vmin; }
+  #game { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(80vw, 120vmin); }
+  .panel { padding: 3vmin 4vmin; animation: bl-pop .5s cubic-bezier(.2,1.3,.3,1); }
+  .title { display: flex; justify-content: space-between; align-items: center; gap: 2vmin; margin-bottom: 2vmin; }
+  .title b { font-family: var(--font-title); font-weight: 400; font-size: 5vmin; letter-spacing: .04em; color: var(--c1); }
+  .title span { font-size: 2.2vmin; letter-spacing: .25em; text-transform: uppercase; color: var(--c2); font-weight: 700; }
+  .q { font-size: 4.2vmin; font-weight: 700; line-height: 1.2; margin-bottom: 2vmin; }
+  .hint { font-size: 3vmin; color: rgba(255,255,255,.8); }
+  .timer { height: 1.2vmin; background: rgba(255,255,255,.12); border-radius: 1vmin; overflow: hidden; margin-top: 2vmin; }
+  .timer i { display: block; height: 100%; background: linear-gradient(90deg, var(--c3), var(--c1)); }
+  .opt { margin: 1.4vmin 0; }
+  .opt .row { display: flex; justify-content: space-between; font-size: 3vmin; font-weight: 700; margin-bottom: .6vmin; }
+  .opt .bar { height: 3vmin; background: rgba(255,255,255,.1); border-radius: 1.5vmin; overflow: hidden; }
+  .opt .bar i { display: block; height: 100%; background: var(--c2); transition: width .6s; border-radius: 1.5vmin; }
+  .lane { position: relative; height: 5vmin; margin: .8vmin 0; border-bottom: .3vmin dashed rgba(255,255,255,.2); }
+  .lane .car { position: absolute; left: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 1vmin; white-space: nowrap;
+    font-size: 2.4vmin; font-weight: 700; transition: left .25s linear; }
+  .lane .car i { width: 6vmin; height: 3vmin; border-radius: 1.4vmin .6vmin .6vmin 1.4vmin; background: var(--c2); box-shadow: inset -1.2vmin 0 0 rgba(0,0,0,.25); }
+  .finish { position: absolute; right: 0; top: 0; bottom: 0; width: .8vmin; background: repeating-linear-gradient(#fff 0 1vmin, #000 1vmin 2vmin); }
+  .racers { display: flex; flex-wrap: wrap; gap: 1vmin; margin-top: 1vmin; }
+  .racers span { padding: .6vmin 1.6vmin; border-radius: 1vmin; background: rgba(255,255,255,.1); font-size: 2.4vmin; }
+  .result { text-align: center; font-family: var(--font-title); font-size: 7vmin; color: var(--c1); text-shadow: .6vmin .6vmin 0 #000; animation: bl-pop .6s cubic-bezier(.2,1.4,.3,1); }
+  .wheel-wrap { position: relative; width: 60vmin; height: 60vmin; margin: 0 auto; }
+  .wheel-wrap canvas { width: 100%; height: 100%; }
+  .pointer { position: absolute; left: 50%; top: -1vmin; transform: translateX(-50%); width: 0; height: 0;
+    border-left: 2.5vmin solid transparent; border-right: 2.5vmin solid transparent; border-top: 5vmin solid var(--c1); filter: drop-shadow(0 .5vmin .5vmin #000); }
+  #toast { position: absolute; right: 3vmin; bottom: 3vmin; display: flex; flex-direction: column; gap: 1vmin; align-items: flex-end; }
+  #toast .panel { padding: 1.5vmin 2.5vmin; font-size: 2.6vmin; font-weight: 700; animation: bl-in-up .4s ease-out; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div id="toast"></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const T = blTheme(q); blStyle(q);
+  const box = document.getElementById("game");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const NAMES = { quiz: ["Quiz", "Réponds dans le chat"], course: ["Course", "Tape !go pour participer"], sondage: ["Sondage", "Vote avec le numéro"],
+    devine: ["Devine le nombre", "Tape juste le nombre"], roue: ["Roue des gages", ""] };
+  let state = null, raf = 0, prevKey = "";
+
+  function timerBar(s) {
+    const total = s.endsAt - s.startedAt, left = Math.max(0, s.endsAt - Date.now());
+    return `<div class="timer"><i style="width:${(left / total) * 100}%"></i></div>`;
+  }
+
+  function render() {
+    cancelAnimationFrame(raf);
+    const s = state;
+    if (!s) { box.innerHTML = ""; prevKey = ""; return; }
+    // l'animation d'apparition ne rejoue que si le jeu ou sa phase change (pas à chaque vote)
+    const key = `${s.type}|${s.phase}|${s.startedAt}`;
+    const same = key === prevKey;
+    prevKey = key;
+    queueMicrotask(() => { if (same && box.firstElementChild) box.firstElementChild.style.animation = "none"; });
+    const [name, sub] = NAMES[s.type] || [s.type, ""];
+    const head = `<div class="title"><b>${name}</b><span>${s.phase === "result" ? "Résultat" : s.phase === "race" ? "C'est parti !" : sub}</span></div>`;
+    if (s.phase === "result") {
+      box.innerHTML = `<div class="panel">${head}${s.type === "roue" ? `<div class="hint" style="text-align:center">Gage :</div>` : ""}<div class="result">${esc(s.result?.text)}</div></div>`;
+      return;
+    }
+    if (s.type === "quiz") box.innerHTML = `<div class="panel">${head}<div class="q">${esc(s.question)}</div><div class="hint">+${s.reward} points pour la 1re bonne réponse</div>${timerBar(s)}</div>`;
+    if (s.type === "devine") box.innerHTML = `<div class="panel">${head}<div class="q">${esc(s.hint)}</div><div class="hint">${s.last ? `${esc(s.last.user)} a tenté ${s.last.n} · ` : ""}${s.tries} essai(s) · +${s.reward} pts</div>${timerBar(s)}</div>`;
+    if (s.type === "sondage") {
+      const total = s.options.reduce((a, o) => a + o.votes, 0) || 1;
+      box.innerHTML = `<div class="panel">${head}<div class="q">${esc(s.question)}</div>${s.options.map((o, i) =>
+        `<div class="opt"><div class="row"><span>${i + 1}. ${esc(o.label)}</span><span>${Math.round(o.votes / total * 100)} % (${o.votes})</span></div>
+         <div class="bar"><i style="width:${o.votes / total * 100}%"></i></div></div>`).join("")}${timerBar(s)}</div>`;
+    }
+    if (s.type === "course" && s.phase === "join") {
+      box.innerHTML = `<div class="panel">${head}<div class="q">${s.racers.length} pilote(s) inscrit(s)</div>
+        <div class="racers">${s.racers.map(r => `<span>${esc(r.user)}</span>`).join("")}</div>${timerBar(s)}</div>`;
+    }
+    if (s.type === "course" && s.phase === "race") {
+      box.innerHTML = `<div class="panel">${head}${s.racers.map((r, i) => `<div class="lane"><div class="finish"></div><div class="car" id="car${i}"><i></i>${esc(r.user)}</div></div>`).join("")}</div>`;
+      const start = Date.now(), dur = s.endsAt - start;
+      const step = () => {
+        const p = Math.min(1, (Date.now() - start) / dur);
+        s.racers.forEach((r, i) => {
+          const wobble = Math.sin(p * 12 + i) * 0.03 * (1 - p);
+          const pos = Math.min(1, p * (r === s.winner || (r.user === s.winner.user && r.platform === s.winner.platform) ? 1 : r.speed / s.winner.speed) + wobble);
+          const el = document.getElementById("car" + i);
+          if (el) el.style.left = `calc(${pos * 100}% - ${pos * 22}vmin)`;
+        });
+        if (p < 1) raf = requestAnimationFrame(step);
+      };
+      step();
+    }
+    if (s.type === "roue") {
+      box.innerHTML = `<div class="panel">${head}<div class="wheel-wrap"><canvas id="wheel" width="800" height="800"></canvas><div class="pointer"></div></div>
+        ${s.by ? `<div class="hint" style="text-align:center;margin-top:1vmin">Lancée par ${esc(s.by)}</div>` : ""}</div>`;
+      spinWheel(s);
+    }
+  }
+
+  // seule la barre de temps bouge entre deux changements d'état (pas de re-rendu complet)
+  setInterval(() => {
+    const bar = document.querySelector(".timer i");
+    if (bar && state) bar.style.width = `${Math.max(0, state.endsAt - Date.now()) / (state.endsAt - state.startedAt) * 100}%`;
+  }, 100);
+
+  function spinWheel(s) {
+    const c = document.getElementById("wheel"), ctx = c.getContext("2d"), n = s.segments.length, seg = Math.PI * 2 / n;
+    const colors = [T.c2, T.c3, T.bg1, T.c1];
+    // angle final : le segment gagnant s'arrête sous le pointeur (en haut)
+    const target = Math.PI * 2 * 6 + (Math.PI * 1.5 - (s.index + 0.5) * seg);
+    const start = Date.now(), dur = Math.max(1000, s.endsAt - start);
+    const draw = () => {
+      const p = Math.min(1, (Date.now() - start) / dur), a = target * (1 - Math.pow(1 - p, 4));
+      ctx.clearRect(0, 0, 800, 800);
+      for (let i = 0; i < n; i++) {
+        ctx.beginPath(); ctx.moveTo(400, 400); ctx.arc(400, 400, 390, a + i * seg, a + (i + 1) * seg); ctx.closePath();
+        ctx.fillStyle = colors[i % colors.length]; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 4; ctx.stroke();
+        ctx.save(); ctx.translate(400, 400); ctx.rotate(a + (i + 0.5) * seg);
+        ctx.fillStyle = i % colors.length === 3 ? "#000" : "#fff"; ctx.font = "bold 30px Bahnschrift, sans-serif"; ctx.textAlign = "right";
+        ctx.fillText(s.segments[i].slice(0, 22), 370, 10); ctx.restore();
+      }
+      ctx.beginPath(); ctx.arc(400, 400, 50, 0, 7); ctx.fillStyle = "#111"; ctx.fill();
+      if (p < 1) raf = requestAnimationFrame(draw);
+    };
+    draw();
+  }
+
+  function toast(text) {
+    const t = document.getElementById("toast"), el = document.createElement("div");
+    el.className = "panel"; el.textContent = text; t.appendChild(el);
+    setTimeout(() => el.remove(), 5000);
+  }
+
+  blHub(m => {
+    if (m.kind === "hello") { state = m.game; render(); }
+    if (m.kind === "game") { state = m.state; render(); }
+    if (m.kind === "roulette") toast(m.win ? `🎰 ${m.user} gagne ${m.bet} pts !` : `💸 ${m.user} perd ${m.bet} pts`);
+  });
+</script>
+</body>
+</html>

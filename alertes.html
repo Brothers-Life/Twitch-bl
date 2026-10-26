@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>BL Alertes</title>
+<!--
+  Alertes (follows, abonnements, bits, raids, cadeaux TikTok, Super Chats, dons). Nécessite le BL Hub.
+  URL : theme=…  style=carte|verre|neon|gta|minimal|plein  anim=glisse|pop|gta|bandeau
+  Taille conseillée de la source : 1000 × 400. Textes, son et durée : dashboard BL Hub > Alertes.
+-->
+<script src="theme.js"></script>
+<script src="hub-client.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; color: #fff; font-family: var(--font-body); }
+  body { --u: .5vh; display: flex; align-items: center; justify-content: center; }
+  .alert { width: 92%; max-height: 92%; display: flex; align-items: center; gap: 5vh; padding: 5vh 7vh; }
+  .icon { flex: none; width: 26vh; height: 26vh; border-radius: 50%; display: grid; place-items: center; font-size: 13vh; font-weight: 800;
+    background: var(--c2); color: var(--bg2); box-shadow: 0 0 0 1.5vh color-mix(in srgb, var(--c2) 30%, transparent); }
+  .icon img { width: 100%; height: 100%; border-radius: 50%; }
+  .body { min-width: 0; display: flex; flex-direction: column; gap: 1.5vh; }
+  .kind { display: flex; align-items: center; gap: 2vh; font-weight: 700; font-size: 6vh; letter-spacing: .3em; text-transform: uppercase; color: var(--c2); }
+  .plat { font-size: 4.5vh; letter-spacing: .1em; padding: .6vh 2vh; border-radius: 1vh; color: #fff; }
+  .text { font-family: var(--font-title); font-size: 13vh; line-height: 1.05; color: var(--c1); }
+  .msg { background: none !important; border: 0 !important; box-shadow: none !important; padding: 0; font-size: 6.5vh; color: rgba(255,255,255,.85); }
+  body.style-plein .text { color: var(--bg2); }
+
+  /* animations */
+  .anim-glisse.in { animation: slideIn .7s cubic-bezier(.2,.9,.2,1.15) both; }
+  .anim-glisse.out { animation: slideOut .5s ease-in both; }
+  @keyframes slideIn { from { opacity: 0; transform: translateX(-30%); } }
+  @keyframes slideOut { to { opacity: 0; transform: translateX(30%); } }
+  .anim-pop.in { animation: popIn .6s cubic-bezier(.2,1.4,.3,1) both; }
+  .anim-pop.out { animation: popOut .4s ease-in both; }
+  @keyframes popIn { from { opacity: 0; transform: scale(.4) rotate(-6deg); } }
+  @keyframes popOut { to { opacity: 0; transform: scale(.7); } }
+  .anim-bandeau.in { animation: band .6s ease-out both; }
+  .anim-bandeau.out { animation: bandOut .4s ease-in both; }
+  @keyframes band { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+  @keyframes bandOut { to { clip-path: inset(0 0 0 100%); } }
+
+  /* style « mission réussie » façon GTA */
+  .gta { width: 100%; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 2vh; }
+  .gta .big { font-family: var(--font-title); font-size: 22vh; line-height: 1; color: var(--c1); letter-spacing: .02em;
+    text-shadow: 1vh 1vh 0 #000, 0 0 6vh color-mix(in srgb, var(--c2) 70%, transparent); }
+  .gta .band { width: 100%; padding: 2vh 0; background: linear-gradient(90deg, transparent, rgba(0,0,0,.8) 20%, rgba(0,0,0,.8) 80%, transparent);
+    font-size: 8vh; font-weight: 700; letter-spacing: .15em; text-transform: uppercase; }
+  .gta .small { font-size: 6vh; color: rgba(255,255,255,.85); text-shadow: 0 0 2vh #000; }
+  .anim-gta.in .big { animation: gtaBig .9s cubic-bezier(.2,.9,.2,1) both; }
+  .anim-gta.in .band { animation: band .6s .2s ease-out both; }
+  .anim-gta.out { animation: popOut .5s ease-in both; }
+  @keyframes gtaBig { from { opacity: 0; letter-spacing: .5em; transform: scale(1.4); filter: blur(1vh); } }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  const theme = blTheme(q);
+  blStyle(q);
+  const ANIM = q.get("anim") || "glisse";
+  const stage = document.getElementById("stage");
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+  const KINDS = {
+    follow: ["Nouveau follow", "❤"], sub: ["Abonnement", "★"], giftsub: ["Abonnements offerts", "🎁"], bits: ["Bits", "◆"],
+    raid: ["Raid", "⚔"], gift: ["Cadeau TikTok", "🎁"], share: ["Partage", "↗"], superchat: ["Super Chat", "$"],
+    member: ["Nouveau membre", "★"], donation: ["Don", "€"],
+  };
+  const PITCH = { follow: 660, sub: 784, giftsub: 880, bits: 740, raid: 523, gift: 698, share: 587, superchat: 880, member: 784, donation: 988 };
+
+  let audio;
+  function chime(type, volume) {
+    try {
+      audio = audio || new AudioContext();
+      const base = PITCH[type] || 660, t = audio.currentTime;
+      [0, 0.12, 0.24].forEach((d, i) => {
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.type = "triangle"; o.frequency.value = base * [1, 1.25, 1.5][i];
+        g.gain.setValueAtTime(0, t + d); g.gain.linearRampToValueAtTime(volume * 0.4, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.001, t + d + 0.6);
+        o.connect(g).connect(audio.destination); o.start(t + d); o.stop(t + d + 0.7);
+      });
+    } catch {}
+  }
+
+  const queue = [];
+  let busy = false;
+  function next() {
+    if (busy || !queue.length) return;
+    busy = true;
+    const a = queue.shift();
+    const [kind, icon] = KINDS[a.type] || ["Alerte", "!"];
+    const plat = BL_PLATFORMS[a.platform] || { label: a.platform, color: "#555" };
+    const message = a.message ? `<div class="msg">« ${esc(a.message)} »</div>` : "";
+    stage.className = `anim-${ANIM} in`;
+    stage.style.width = "100%";
+    stage.innerHTML = ANIM === "gta"
+      ? `<div class="gta"><div class="big">${esc(kind)}</div><div class="band">${esc(a.text)}</div>${a.message ? `<div class="small">« ${esc(a.message)} »</div>` : ""}</div>`
+      : `<div class="alert panel" style="margin:auto"><div class="icon">${a.type === "follow" || a.type === "raid" ? `<img src="logo.png" alt="">` : icon}</div>
+           <div class="body"><div class="kind">${esc(kind)} <span class="plat" style="background:${plat.color}">${esc(plat.label)}</span></div>
+           <div class="text">${esc(a.text)}</div>${message}</div></div>`;
+    if (a.sound) chime(a.type, a.volume ?? 0.6);
+    if (a.tts && a.message && "speechSynthesis" in window) {
+      const u = new SpeechSynthesisUtterance(`${a.user} dit : ${a.message}`); u.lang = "fr-FR"; speechSynthesis.speak(u);
+    }
+    const dur = (a.duration || 6) * 1000;
+    setTimeout(() => { stage.className = `anim-${ANIM} out`; }, dur);
+    setTimeout(() => { stage.innerHTML = ""; busy = false; next(); }, dur + 600);
+  }
+
+  blHub(m => {
+    if (m.kind === "alert") { queue.push(m.alert); next(); }
+  });
+</script>
+</body>
+</html>

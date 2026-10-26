@@ -1,0 +1,1450 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL Studio</title>
+<!-- Appli unique BL Studio : pilotage OBS (scènes, DA, widgets, textes, transitions) + Hub (stats, chat unifié,
+     alertes, bot, mini-jeux, connexions). Servie par le BL Hub sur http://localhost:3939 (dock OBS « BL Studio »). -->
+<script src="/theme.js"></script>
+<style>
+  :root { --bg: #120f0d; --panel: #1c1714; --panel2: #241d19; --line: #342a24; --txt: #f1e9e2; --mute: #a3958a; --acc: #de9425;
+    --ok: #3ccf6e; --warn: #e8b730; --ko: #e5484d; --tw: #9146ff; --tt: #fe2c55; --yt: #ff3b3b; --se: #1ec98b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--txt); font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  header img { width: 28px; height: 28px; border-radius: 50%; }
+  header b { font-size: 15px; }
+  .lights { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .light { display: flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--panel); color: var(--mute); }
+  .light i { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+  .light.on i { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .light.connecting i { background: var(--warn); } .light.error i { background: var(--ko); }
+  nav { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); overflow-x: auto; position: sticky; top: 45px; background: var(--bg); z-index: 4; }
+  nav button { background: none; border: 0; padding: 9px 12px; border-bottom: 2px solid transparent; color: var(--mute); cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--txt); border-color: var(--acc); }
+  main { padding: 12px; max-width: 1400px; margin: 0 auto; }
+  section { display: none; } section.on { display: block; }
+  h3 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); }
+  h3:first-child { margin-top: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat .k { font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+  .stat .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .s { font-size: 11px; color: var(--mute); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; flex-wrap: wrap; }
+  .row > label { flex: 0 0 150px; color: var(--mute); }
+  .row > input[type=text], .row > input[type=password], .row > input[type=number], .row > select, .row > textarea { flex: 1; min-width: 120px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { background: #0d0a09; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  input[type=number] { width: 80px; }
+  textarea { resize: vertical; min-height: 60px; width: 100%; }
+  input[type=checkbox] { accent-color: var(--acc); width: 16px; height: 16px; }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--acc); }
+  .btn.primary { background: var(--acc); border-color: var(--acc); color: #1a0f05; font-weight: 600; }
+  .btn.danger:hover { border-color: var(--ko); color: var(--ko); }
+  .btn.small { padding: 3px 8px; font-size: 12px; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; color: #fff; letter-spacing: .04em; }
+  .tw { background: var(--tw); } .tt { background: var(--tt); } .yt { background: var(--yt); } .se { background: var(--se); } .bot { background: var(--acc); color: #1a0f05; }
+  #chat { height: calc(100vh - 230px); min-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 8px; }
+  .cm { padding: 4px 6px; border-radius: 5px; word-wrap: break-word; }
+  .cm:hover { background: var(--panel2); }
+  .cm .n { font-weight: 700; margin: 0 4px; }
+  .cm.ev { background: rgba(222,148,37,.08); border-left: 3px solid var(--acc); }
+  .cm.mention { background: rgba(229,72,77,.12); }
+  .cm time { color: var(--mute); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  th { color: var(--mute); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  td input[type=text] { width: 100%; }
+  .list li { padding: 4px 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; align-items: center; }
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list .val { margin-left: auto; font-weight: 700; color: var(--acc); }
+  canvas { width: 100%; height: 200px; display: block; }
+  .hint { color: var(--mute); font-size: 12px; }
+  code { background: #0d0a09; padding: 2px 6px; border-radius: 4px; user-select: all; }
+  .toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--acc); color: #1a0f05; padding: 8px 14px; border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 10; }
+  .toast.on { opacity: 1; }
+  .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .legend { display: flex; gap: 12px; font-size: 11px; color: var(--mute); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+
+  /* --- configurateur OBS --- */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+  .scene { text-align: left; padding: 8px; }
+  .scene.live { border-color: var(--ko); box-shadow: inset 3px 0 0 var(--ko); }
+  .theme { cursor: pointer; padding: 6px; border-radius: 8px; border: 2px solid var(--line); background: var(--panel); text-align: left; }
+  .theme.on { border-color: var(--acc); }
+  .sw { display: flex; height: 22px; border-radius: 4px; overflow: hidden; margin-bottom: 4px; }
+  .sw i { flex: 1; }
+  .item { display: flex; align-items: center; gap: 6px; padding: 3px 4px; border-radius: 4px; }
+  .item:hover { background: #241c18; }
+  .item.child { padding-left: 22px; }
+  .item span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item.off span { color: var(--mute); text-decoration: line-through; }
+  .eye { width: 26px; height: 22px; border-radius: 4px; border: 1px solid var(--line); background: #0f0c0b; cursor: pointer; font-size: 12px; }
+  .eye.on { background: rgba(222,148,37,.2); border-color: var(--acc); }
+  .toggles { display: flex; flex-wrap: wrap; gap: 10px; margin: 6px 0; }
+  .toggles label { display: flex; align-items: center; gap: 4px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  .stylecards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 6px; }
+  .stylecard { border: 2px solid var(--line); border-radius: 8px; padding: 6px; cursor: pointer; background: #0d0a09; }
+  .stylecard.on { border-color: var(--acc); }
+  .stylecard b { display: block; font-size: 12px; margin-top: 4px; }
+  .stylecard small { color: var(--mute); font-size: 11px; }
+  .preview { width: 100%; border: 0; display: block; pointer-events: none; border-radius: 6px;
+    background: repeating-conic-gradient(#2a2420 0 25%, #1c1714 0 50%) 0 0 / 16px 16px; }
+  .wstyle-row select { flex: 1; }
+  .packs { display: grid; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 8px; }
+  .pack { position: relative; overflow: hidden; height: 92px; padding: 10px 12px; text-align: left; cursor: pointer; color: var(--p1);
+    border: 2px solid transparent; border-radius: 10px;
+    background: linear-gradient(115deg, transparent 60%, var(--p2) 60% 68%, var(--p3) 68% 74%, var(--p1) 74% 76%, transparent 76%),
+                linear-gradient(180deg, var(--pb1), var(--pb2)); }
+  .pack { display: flex; flex-direction: column; justify-content: space-between; }
+  .pack b { display: block; font-family: var(--pf); font-size: 20px; line-height: 1.1; font-weight: 400; text-shadow: 0 2px 0 rgba(0,0,0,.55), 0 0 12px rgba(0,0,0,.6);
+    max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pack small { display: block; max-width: 58%; font-size: 10.5px; line-height: 1.25; color: var(--p1); opacity: .75; }
+  .pack.on { border-color: var(--p2); box-shadow: 0 0 0 1px var(--p1) inset; }
+  .pack:focus-visible { outline: 2px solid var(--p1); outline-offset: 2px; }
+  .bgprev { width: 100%; max-width: 480px; aspect-ratio: 16/9; border: 0; border-radius: 6px; display: block; margin-bottom: 8px; pointer-events: none; background: #000; }
+  .stingers { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stingercard { border: 2px solid var(--line); border-radius: 10px; padding: 6px; cursor: pointer; background: var(--panel); text-align: left; }
+  .stingercard.on { border-color: var(--acc); }
+  .stingercard .vid { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden;
+    background: repeating-conic-gradient(#2a2420 0 25%, #1c1714 0 50%) 0 0 / 14px 14px; }
+  .stingercard video { width: 100%; height: 100%; display: block; object-fit: cover; }
+  .stingercard .todo { position: absolute; inset: 0; display: grid; place-items: center; font-size: 11px; color: var(--mute); text-align: center; padding: 6px; }
+  .stingercard .todo[hidden] { display: none; }
+  .dests { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+  .dest { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--panel); display: flex; flex-direction: column; gap: 6px; }
+  .dest .dh { display: flex; align-items: center; gap: 8px; }
+  .dest .dh b { flex: 1; font-size: 15px; }
+  .dest .st { font-size: 12px; color: var(--mute); }
+  .dest.live { border-color: var(--ko); box-shadow: inset 4px 0 0 var(--ko); }
+  .dest.live .st { color: #ff8d90; font-weight: 600; }
+  .dest .canvas { font-size: 11px; color: var(--mute); }
+  .onair { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--ko); }
+  .onair::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--ko); box-shadow: 0 0 8px var(--ko); }
+  .stingercard b { display: block; font-size: 12px; margin-top: 5px; }
+  .stingercard small { color: var(--mute); font-size: 11px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+  nav .sep { width: 1px; background: var(--line); margin: 8px 4px; flex: none; }
+  nav .grp { font-size: 10px; color: var(--mute); text-transform: uppercase; letter-spacing: .1em; align-self: center; padding: 0 4px 0 8px; white-space: nowrap; }
+  .obs-note { display: none; background: rgba(229,72,77,.1); border: 1px solid rgba(229,72,77,.4); color: #f3b5b7; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  body:not(.obs-on) .needs-obs .obs-note { display: block; }
+  body:not(.obs-on) .needs-obs .obs-body { opacity: .35; pointer-events: none; }
+  .row > label { flex: 0 0 150px; }
+  #tab-scenes .grid button { min-height: 44px; }
+
+  /* ===== Refonte BL Studio : l'appli prend les couleurs de la DA choisie (variables posées par paintStudio) ===== */
+  :root { --font-ui: "Bahnschrift", "DIN Alternate", "Segoe UI", sans-serif;
+    --hi: #fae664; --acc: #de9425; --acc2: #cc4308; --tb1: #1a0b06; --tb2: #070302; --on-acc: #1a0f05;
+    --bg: color-mix(in srgb, var(--tb2) 55%, #15161a);
+    --panel: color-mix(in srgb, var(--tb1) 35%, #1d1f24);
+    --panel2: color-mix(in srgb, var(--tb1) 30%, #272a31);
+    --line: color-mix(in srgb, var(--acc) 16%, #2f323a);
+    --field: color-mix(in srgb, var(--tb2) 60%, #0e0f12);
+    --txt: #eef0f3; --mute: #9aa0ab; }
+  html, body { font: 13px/1.45 var(--font-ui); background: var(--bg); }
+  header { position: sticky; top: 0; height: 54px; padding: 0 16px; gap: 12px; flex-wrap: nowrap; background: var(--bg); border-bottom: 0; }
+  header::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px;
+    background: linear-gradient(90deg, var(--acc) 0 62%, var(--acc2) 62% 86%, var(--hi) 86%); }
+  header img { width: 32px; height: 32px; border-radius: 8px; }
+  header b { font-size: 18px; font-weight: 700; font-stretch: condensed; letter-spacing: .01em; }
+  .light { background: var(--panel); }
+  .shell { display: grid; grid-template-columns: 210px minmax(0, 1fr); min-height: calc(100vh - 54px); }
+  nav { position: sticky; top: 54px; height: calc(100vh - 54px); display: flex; flex-direction: column; gap: 1px;
+    padding: 10px 12px 20px 10px; border: 0; border-right: 1px solid var(--line); overflow: hidden auto;
+    background: color-mix(in srgb, var(--bg) 82%, #000); }
+  nav .grp { align-self: stretch; padding: 14px 10px 5px; font-size: 12px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--mute); }
+  nav .grp:first-child { padding-top: 4px; }
+  nav .sep { display: none; }
+  nav button { display: flex; align-items: center; gap: 11px; padding: 8px 10px; border: 0; border-radius: 0; position: relative; isolation: isolate;
+    color: var(--mute); font-size: 13.5px; text-align: left; }
+  nav button svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+  nav button:hover { color: var(--txt); }
+  nav button.on { color: var(--on-acc); font-weight: 700; }
+  nav button.on::before { content: ""; position: absolute; inset: 2px 0; z-index: -1; background: var(--acc); transform: skewX(-12deg); box-shadow: 5px 0 0 var(--acc2); }
+  main { padding: 20px 24px 48px; max-width: 1280px; width: 100%; margin: 0; }
+  h3 { margin: 24px 0 10px; font-size: 15px; font-weight: 700; font-stretch: semi-condensed; text-transform: none; letter-spacing: 0; color: var(--txt); }
+  h3:first-child, .card > h3:first-child { margin-top: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; }
+  .hint { color: var(--mute); }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 14px; transition: border-color .15s, background-color .15s; }
+  .btn:hover { border-color: var(--acc); }
+  .btn.primary { background: var(--acc); color: var(--on-acc); border: 0; border-radius: 0; padding: 8px 22px; font-weight: 700;
+    clip-path: polygon(9px 0, 100% 0, calc(100% - 9px) 100%, 0 100%); }
+  .btn.primary:hover { background: color-mix(in srgb, var(--acc) 82%, #fff); }
+  .btn.small { padding: 4px 10px; }
+  .btn.small.primary { padding: 5px 16px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { background: var(--field); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; }
+  input[type=checkbox], input[type=range] { accent-color: var(--acc); }
+  :is(button, .btn, input, select, textarea, summary, .theme, .stylecard):focus-visible { outline: 2px solid var(--hi); outline-offset: 2px; }
+  .theme { background: var(--panel); border-color: var(--line); }
+  .theme.on, .stylecard.on, .stingercard.on { border-color: var(--acc); box-shadow: 0 0 0 1px var(--acc) inset; }
+  .stylecard { background: var(--field); border-color: var(--line); }
+  .stingercard { background: var(--panel); border-color: var(--line); }
+  .eye.on { background: color-mix(in srgb, var(--acc) 22%, transparent); border-color: var(--acc); }
+  .scene.live { border-color: var(--ko); box-shadow: inset 4px 0 0 var(--ko); }
+  .stat .k, th { text-transform: none; letter-spacing: 0; font-size: 12px; }
+  .stat .v { font-size: 30px; font-stretch: condensed; color: var(--txt); }
+  .list .val { color: var(--hi); }
+  .cm.ev { background: color-mix(in srgb, var(--acc) 10%, transparent); border-left-color: var(--acc); }
+  .toast { background: var(--acc); color: var(--on-acc); border-radius: 0; padding: 10px 26px; clip-path: polygon(10px 0, 100% 0, calc(100% - 10px) 100%, 0 100%); }
+  .tag.bot { background: var(--acc); color: var(--on-acc); }
+  /* dock OBS étroit : la barre latérale devient un rail d'icônes */
+  @media (max-width: 760px) {
+    .shell { grid-template-columns: 52px minmax(0, 1fr); }
+    nav { padding: 8px 6px; }
+    nav .grp { display: none; }
+    nav .sep { display: block; width: auto; height: 1px; margin: 6px 6px; background: var(--line); }
+    nav button { justify-content: center; padding: 10px 0; }
+    nav button span { display: none; }
+    nav button.on::before { inset: 3px 4px; box-shadow: 3px 0 0 var(--acc2); }
+    main { padding: 12px 12px 40px; }
+    .row > label { flex-basis: 110px; }
+    header .hint { display: none; }
+    header { position: relative; height: auto; min-height: 54px; padding: 8px 12px 11px; flex-wrap: wrap; }
+    header b { white-space: nowrap; }
+    .lights { flex-basis: 100%; margin-left: 0; }
+    .light { padding: 2px 7px; }
+    nav { top: 0; height: 100vh; }
+    .shell { min-height: 100vh; }
+  }
+  @media (prefers-reduced-motion: reduce) { *, *::before { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="">
+  <b>BL Studio</b>
+  <span class="hint" id="uptime"></span><button class="btn small" title="Recharger" onclick="location.reload()">↻</button>
+  <button class="btn small primary" id="updBtn" hidden>Mise à jour disponible</button>
+  <div class="lights"><span class="light" id="obsLight"><i></i>OBS</span><span id="lights" style="display:contents"></span></div>
+</header>
+<div class="shell">
+<nav>
+  <span class="grp">Live</span>
+  <button data-tab="scenes" title="Scènes" class="on"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><span>Scènes</span></button>
+  <button data-tab="diffusion" title="Diffusion"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="2"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><span>Diffusion</span></button>
+  <button data-tab="stats" title="Stats"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V11M11 20V5M17 20v-7M3 20h18"/></svg><span>Stats</span></button>
+  <button data-tab="chat" title="Chat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/></svg><span>Chat</span></button>
+  <span class="sep"></span><span class="grp">Communauté</span>
+  <button data-tab="alerts" title="Alertes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16v-5a6 6 0 0 1 12 0v5l2 2H4zM10 21h4"/></svg><span>Alertes</span></button>
+  <button data-tab="bot" title="Bot"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="8" width="14" height="11" rx="2"/><path d="M12 4v4M9.5 13h.01M14.5 13h.01"/></svg><span>Bot</span></button>
+  <button data-tab="games" title="Mini-jeux"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8h10a5 5 0 0 1 5 5 3 3 0 0 1-5.4 1.8L15 13H9l-1.6 1.8A3 3 0 0 1 2 13a5 5 0 0 1 5-5zM7 10.5v3M5.5 12h3M16 11h.01M18 13h.01"/></svg><span>Mini-jeux</span></button>
+  <button data-tab="board" title="Classement"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4h8v5a4 4 0 0 1-8 0zM8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/></svg><span>Classement</span></button>
+  <span class="sep"></span><span class="grp">Design</span>
+  <button data-tab="identite" title="Identité"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="9" cy="11" r="2"/><path d="M6 16a3 3 0 0 1 6 0M14 10h4M14 14h3"/></svg><span>Identité</span></button>
+  <button data-tab="da" title="DA & animations"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.2-1.6-.4-1 .3-2.4 1.6-2.4H17a4 4 0 0 0 4-4c0-5.5-4-10-9-10z"/><path d="M7.5 11h.01M10.5 7.5h.01M15 8h.01"/></svg><span>DA & animations</span></button>
+  <button data-tab="widgets" title="Widgets"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Widgets</span></button>
+  <button data-tab="textes" title="Textes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7V4h14v3M12 4v16M9 20h6"/></svg><span>Textes</span></button>
+  <button data-tab="transitions" title="Transitions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h5L7 20H2zM17 4h5l-5 16h-5z"/></svg><span>Transitions</span></button>
+  <span class="sep"></span><span class="grp">Réglages</span>
+  <button data-tab="conn" title="Connexions"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3v5M15 3v5M7 8h10v3a5 5 0 0 1-10 0zM12 16v5"/></svg><span>Connexions</span></button>
+</nav>
+<main>
+
+    <section id="tab-scenes" class="needs-obs on">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Passer en direct</h3>
+      <div class="grid" id="sceneButtons"></div>
+      <h3>Éléments de la scène <span id="selScene"></span></h3>
+      <div class="card" id="sceneItems"></div>
+      <div class="row"><button class="btn" id="restartCd">↻ Relancer les comptes à rebours</button></div>
+      <h3>Canevas vertical (TikTok)</h3>
+      <div class="card">
+        <label class="row" style="margin:0"><input type="checkbox" id="linkV"> Changer aussi la scène verticale (« V · nom de la scène »)</label>
+        <p class="hint" id="linkStatus">Nécessite le plugin Aitum Vertical.</p>
+      </div>
+    </div>
+    </section>
+
+    <section id="tab-da" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Packs prêts à l'emploi</h3>
+      <p class="hint" style="margin-top:0">Un clic applique tout d'un coup : couleurs, police, style des widgets, fond animé et transition.</p>
+      <div class="packs" id="packs"></div>
+      <h3>Thème (DA)</h3>
+      <div class="grid" id="themes"></div>
+      <details class="card" style="margin-top:8px" id="customBox"><summary>🎨 Créer / modifier ma DA perso</summary>
+        <div class="row"><label>Nom</label><input type="text" id="cName" placeholder="Ma DA"></div>
+        <div class="row"><label>Clair (titres)</label><input type="color" id="cc1" value="#fae664"></div>
+        <div class="row"><label>Principale</label><input type="color" id="cc2" value="#de9425"></div>
+        <div class="row"><label>Foncée</label><input type="color" id="cc3" value="#cc4308"></div>
+        <div class="row"><label>Fond haut</label><input type="color" id="cbg1" value="#1a0b06"></div>
+        <div class="row"><label>Fond bas</label><input type="color" id="cbg2" value="#070302"></div>
+        <div class="row"><label>Sous-titres</label><input type="color" id="csub" value="#f3e6d0"></div>
+        <div class="row"><span></span><button class="btn primary small" id="cSave">Enregistrer ma DA</button><button class="btn small" id="cDel">Supprimer</button></div>
+        <p class="hint">Ta DA apparaît dans la liste des thèmes. À l'application, une transition stinger à tes couleurs est générée (BL Hub requis, ~15 s la 1re fois).</p>
+      </details>
+      <h3>Look des widgets</h3>
+      <div class="card">
+        <p class="hint" style="margin:0">Style par défaut de tous les widgets (un widget peut avoir son propre style dans l'onglet Widgets).</p>
+        <div class="stylecards" id="styleCards"></div>
+        <select id="wstyle" hidden>
+          <option value="carte">Carte</option><option value="verre">Verre</option><option value="neon">Néon</option>
+          <option value="gta">GTA</option><option value="minimal">Minimal</option><option value="plein">Plein</option></select>
+        <div class="row"><label>Police des titres</label><select id="font"></select></div>
+        <div class="row"><label>Arrondi des coins</label><input type="range" id="arrondi" min="0" max="2.5" step="0.1"><span id="arrondiV"></span></div>
+        <div class="row"><label>Lueur</label><input type="range" id="lueur" min="0" max="2" step="0.1"><span id="lueurV"></span></div>
+        <div class="row"><label>Animation des alertes</label><select id="aanim">
+          <option value="glisse">Glisse</option><option value="pop">Pop</option><option value="gta">Mission GTA</option><option value="bandeau">Bandeau</option></select></div>
+      </div>
+      <h3>Animation des fonds</h3>
+      <div class="card">
+        <iframe class="bgprev" id="bgPrev" title="Aperçu du fond animé"></iframe>
+        <div class="row"><label>Style</label><select id="anim"></select></div>
+        <div class="row"><label>Vitesse</label><input type="range" id="vitesse" min="0.2" max="3" step="0.1" value="1"><span id="vitesseV">1</span></div>
+        <div class="row"><label>Densité</label><input type="range" id="densite" min="0.3" max="3" step="0.1" value="1"><span id="densiteV">1</span></div>
+        <div class="toggles">
+          <label><input type="checkbox" id="traits" checked> Traits</label>
+          <label><input type="checkbox" id="bandes" checked> Bandes de coin</label>
+          <label><input type="checkbox" id="eclairs" checked> Éclairs</label>
+          <label><input type="checkbox" id="grain" checked> Grain</label>
+        </div>
+      </div>
+      <div class="row"><button class="btn primary" id="applyDA">Appliquer à toutes les scènes</button>
+        <button class="btn" id="exportDA">⬇ Exporter ma DA</button>
+        <label class="btn" style="margin:0">⬆ Importer une DA<input type="file" id="importDA" accept=".json,application/json" hidden></label></div>
+      <p class="hint">Change les couleurs des widgets, des fonds animés, des titres et de la transition stinger.</p>
+    </div>
+    </section>
+
+    <section id="tab-widgets" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Ajouter un widget dans la scène affichée</h3>
+      <div class="card">
+        <div class="row"><label>Type</label><select id="newType">
+          <option value="chat">Chat Twitch</option><option value="ticker">Bandeau défilant</option>
+          <option value="socials">Réseaux sociaux</option><option value="perso">Carte personnage RP</option>
+          <option value="goal">Barre d'objectif</option><option value="camframe">Cadre webcam</option>
+          <option value="music">Musique Spotify</option><option value="clock">Horloge</option>
+          <option value="badge">Badge serveur</option><option value="countdown">Compte à rebours</option>
+          <option value="hub:alertes">⚡ Alertes (BL Hub)</option><option value="hub:chat">⚡ Chat unifié (BL Hub)</option>
+          <option value="hub:minijeux">⚡ Mini-jeux (BL Hub)</option><option value="hub:soutiens">⚡ Derniers soutiens (BL Hub)</option>
+        </select></div>
+        <div class="row"><span></span><button class="btn primary" id="addWidget">+ Ajouter</button></div>
+      </div>
+      <h3>Réglages des widgets</h3>
+      <div id="widgetList"></div>
+    </div>
+    </section>
+
+    <section id="tab-textes" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Textes des scènes</h3>
+      <div id="textList"></div>
+    </div>
+    </section>
+
+    <section id="tab-identite" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Identité de la chaîne</h3>
+      <p class="hint">Tout ce qui est propre à ta chaîne. « Appliquer partout » met à jour les textes des scènes, les widgets et le bot.</p>
+      <div class="card">
+        <div class="row"><label>Logo</label><img id="idLogo" alt="" style="width:64px;height:64px;border-radius:50%;object-fit:cover;background:#0d0a09">
+          <label class="btn small" style="margin:0">Changer le logo<input type="file" id="idLogoFile" accept="image/png,image/jpeg,image/webp" hidden></label>
+          <span class="hint">PNG carré conseillé (512 px ou plus)</span></div>
+        <div class="row"><label>Nom de la chaîne</label><input type="text" id="idName" placeholder="Ma chaîne"></div>
+        <div class="row"><label>Slogan</label><input type="text" id="idTagline" placeholder="Lives & best-of"></div>
+        <div class="row"><label>Serveur / jeu</label><input type="text" id="idServer" placeholder="ex : nom du serveur RP"></div>
+        <div class="row"><label>Personnage</label><input type="text" id="idCharacter" placeholder="ex : Pablo Reed"></div>
+        <div class="row"><label>Métier</label><input type="text" id="idJob" placeholder="ex : Concessionnaire"></div>
+        <div class="row"><label>Ville</label><input type="text" id="idCity" placeholder="ex : Los Santos"></div>
+      </div>
+      <h3>Réseaux</h3>
+      <div class="card">
+        <div class="row"><label>Twitch</label><input type="text" id="idTwitch" placeholder="pseudo"></div>
+        <div class="row"><label>TikTok</label><input type="text" id="idTiktok" placeholder="@pseudo"></div>
+        <div class="row"><label>YouTube</label><input type="text" id="idYoutube" placeholder="@chaine"></div>
+        <div class="row"><label>Discord</label><input type="text" id="idDiscord" placeholder="discord.gg/…"></div>
+        <div class="row"><label>Instagram</label><input type="text" id="idInstagram" placeholder="@pseudo"></div>
+        <div class="row"><label>X / Twitter</label><input type="text" id="idX" placeholder="@pseudo"></div>
+      </div>
+      <div class="row"><button class="btn" id="idSave">Enregistrer</button><button class="btn primary" id="idApply">Enregistrer et appliquer partout</button></div>
+    </div>
+    </section>
+
+    <section id="tab-diffusion" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Diffusion multi-plateforme</h3>
+      <p class="hint" style="margin-top:0">Twitch part du format 16:9, TikTok du format vertical (scènes « V · … »), YouTube et les autres sorties passent par Aitum Multistream.</p>
+      <div class="row"><button class="btn primary" id="goLive">Lancer le live partout</button><button class="btn danger" id="stopLive">Tout arrêter</button><span id="liveSum" class="hint"></span></div>
+      <div class="dests" id="dests"></div>
+      <h3>Clé TikTok</h3>
+      <div class="card">
+        <p class="hint" style="margin-top:0">TikTok LIVE Center ou appli TikTok : LIVE → diffuser sur PC. Copie l'URL du serveur et la clé de stream. TikTok change souvent la clé : recolle-la avant chaque live.</p>
+        <div class="row"><label>URL du serveur</label><input type="text" id="ttServer" placeholder="rtmp://…" autocomplete="off"></div>
+        <div class="row"><label>Clé de stream</label><input type="password" id="ttKey" autocomplete="off" placeholder="colle la clé ici"></div>
+        <div class="row"><span></span><button class="btn primary" id="ttSave">Envoyer à OBS</button></div>
+        <p class="hint" id="ttInfo">La clé est envoyée directement à OBS : BL Studio ne la garde pas.</p>
+      </div>
+      <h3>YouTube et autres plateformes</h3>
+      <div class="card"><p class="hint" style="margin:0">La sortie <b>YouTube</b> est déjà créée dans le dock <b>Aitum Multistream</b> d'OBS : clique sur sa roue crantée et colle ta clé YouTube (YouTube Studio → Passer au direct → Clé de flux). Pour une autre plateforme : bouton + du même dock. Tout apparaît ici automatiquement.</p></div>
+    </div>
+    </section>
+
+    <section id="tab-transitions" class="needs-obs">
+      <div class="obs-note">⚠ OBS n'est pas connecté : onglet <b>Connexions</b> → carte <b>OBS</b>.</div>
+      <div class="obs-body">
+      <h3>Style du stinger</h3>
+      <p class="hint" style="margin-top:0">Aux couleurs de ta DA, avec ton logo et le nom de ta chaîne. Un style jamais utilisé est généré la première fois (20 s environ).</p>
+      <div class="stingers" id="stingers"></div>
+      <h3>Transition active</h3>
+      <div class="grid" id="transList"></div>
+      <div class="card" style="margin-top:8px">
+        <div class="row"><label>Durée (hors stinger)</label><input type="range" id="tdur" min="100" max="2000" step="50"><span id="tdurV"></span></div>
+      </div>
+      <p class="hint">Le stinger suit le thème et le style choisis ici et dans l'onglet DA.</p>
+    </div>
+    </section>
+
+
+  <!-- ======== STATS ======== -->
+  <section id="tab-stats">
+    <div class="cards" id="statCards"></div>
+    <h3>Activité (messages par minute et spectateurs)</h3>
+    <div class="card">
+      <div class="legend"><span><i style="background:var(--tw)"></i>Twitch</span><span><i style="background:var(--tt)"></i>TikTok</span><span><i style="background:var(--yt)"></i>YouTube</span><span><i style="background:#fff"></i>Spectateurs</span></div>
+      <canvas id="chart" width="1200" height="220"></canvas>
+    </div>
+    <div class="cols" style="margin-top:10px">
+      <div class="card"><h3>Top bavards</h3><ul class="list" id="topChat"></ul></div>
+      <div class="card"><h3>Top soutiens (valeur estimée)</h3><ul class="list" id="topSup"></ul></div>
+      <div class="card"><h3>Derniers événements</h3><ul class="list" id="recent"></ul></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn danger" id="resetStats">Remettre la session à zéro</button></div>
+  </section>
+
+  <!-- ======== CHAT ======== -->
+  <section id="tab-chat">
+    <div class="row">
+      <label style="flex:none"><input type="checkbox" class="cf" value="twitch" checked> Twitch</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="tiktok" checked> TikTok</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="youtube" checked> YouTube</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="bot" checked> Bot</label>
+      <label style="flex:none"><input type="checkbox" id="cfEvents" checked> Événements</label>
+      <span class="hint" style="margin-left:auto">Mot surligné : <input type="text" id="mention" placeholder="ton pseudo" style="width:120px"></span>
+    </div>
+    <div class="card" id="chat"></div>
+    <div class="row"><input type="text" id="say" placeholder="Écrire sur Twitch (nécessite la connexion Twitch)…" style="flex:1"><button class="btn primary" id="sayBtn">Envoyer</button></div>
+    <p class="hint">TikTok et YouTube sont en lecture seule : tu vois leurs messages ici, mais tu réponds depuis leur appli.</p>
+  </section>
+
+  <!-- ======== ALERTES ======== -->
+  <section id="tab-alerts">
+    <div class="card">
+      <div class="row"><label>Alertes activées</label><input type="checkbox" id="aOn"></div>
+      <div class="row"><label>Durée (s)</label><input type="number" id="aDur" min="2" max="30"></div>
+      <div class="row"><label>Son</label><input type="checkbox" id="aSound"> <span class="hint">Volume</span> <input type="range" id="aVol" min="0" max="1" step="0.05"></div>
+      <div class="row"><label>Lire les messages (voix)</label><input type="checkbox" id="aTts"> <span class="hint">si OBS le permet</span></div>
+    </div>
+    <h3>Par type d'alerte</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
+    <div class="row"><button class="btn primary" id="saveAlerts">Enregistrer</button></div>
+  </section>
+
+  <!-- ======== BOT ======== -->
+  <section id="tab-bot">
+    <div class="cols">
+      <div class="card">
+        <div class="row"><label>Bot actif</label><input type="checkbox" id="bOn"></div>
+        <div class="row"><label>Nom du bot</label><input type="text" id="bName"></div>
+        <div class="row"><label>Nom des points</label><input type="text" id="bPts"></div>
+        <p class="hint">Le bot lit les 3 chats et répond sur Twitch (connexion Twitch requise). Commandes intégrées : !commandes !points !top !roulette</p>
+      </div>
+      <div class="card">
+        <h3>Points gagnés</h3>
+        <div class="row"><label>Message (1×/min)</label><input type="number" id="rChat"></div>
+        <div class="row"><label>Follow</label><input type="number" id="rFollow"></div>
+        <div class="row"><label>Partage</label><input type="number" id="rShare"></div>
+        <div class="row"><label>Abonnement / membre</label><input type="number" id="rSub"></div>
+        <div class="row"><label>Par bit</label><input type="number" id="rBit" step="0.1"></div>
+        <div class="row"><label>Par diamant TikTok</label><input type="number" id="rDiamond" step="0.1"></div>
+        <div class="row"><label>Par euro donné</label><input type="number" id="rEuro"></div>
+      </div>
+    </div>
+    <h3>Commandes ({user} {points} {uptime} {plateforme})</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Commande</th><th>Réponse</th><th>Délai (s)</th><th></th></tr></thead><tbody id="cmds"></tbody></table>
+      <div class="row"><button class="btn small" id="addCmd">+ Commande</button></div></div>
+    <h3>Messages automatiques (sur Twitch)</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Message</th><th>Toutes les (min)</th><th></th></tr></thead><tbody id="timers"></tbody></table>
+      <div class="row"><button class="btn small" id="addTimer">+ Message</button></div></div>
+    <div class="row"><button class="btn primary" id="saveBot">Enregistrer</button></div>
+  </section>
+
+  <!-- ======== MINI-JEUX ======== -->
+  <section id="tab-games">
+    <div class="row"><span class="hint">Jeu en cours :</span> <b id="gNow">aucun</b> <button class="btn danger small" id="gStop">Arrêter</button></div>
+    <div class="games">
+      <div class="card"><h3>🎯 Quiz</h3>
+        <div class="row"><button class="btn primary" data-game="quiz">Question au hasard</button></div>
+        <div class="row"><input type="text" id="qQ" placeholder="Ta question" style="flex:1"></div>
+        <div class="row"><input type="text" id="qA" placeholder="Réponses acceptées, séparées par |" style="flex:1"><button class="btn" id="qGo">Lancer</button></div></div>
+      <div class="card"><h3>🏁 Course</h3><p class="hint">Les spectateurs tapent !go, puis une course animée désigne le gagnant.</p>
+        <div class="row"><button class="btn primary" data-game="course">Lancer les inscriptions</button></div></div>
+      <div class="card"><h3>📊 Sondage</h3>
+        <div class="row"><input type="text" id="pQ" placeholder="Question" style="flex:1"></div>
+        <textarea id="pO" placeholder="Une option par ligne">Oui
+Non</textarea>
+        <div class="row"><label style="flex:none">Durée (s)</label><input type="number" id="pD" value="60"><button class="btn primary" id="pGo">Lancer</button></div></div>
+      <div class="card"><h3>🔢 Devine le nombre</h3>
+        <div class="row"><label style="flex:none">Entre 1 et</label><input type="number" id="dMax" value="100"><button class="btn primary" id="dGo">Lancer</button></div></div>
+      <div class="card"><h3>🎡 Roue des gages</h3>
+        <textarea id="wSeg"></textarea>
+        <div class="row"><label style="flex:none">Cadeau TikTok qui la lance</label><input type="text" id="wGift" placeholder="ex : Rose (vide = off)"></div>
+        <div class="row"><button class="btn primary" id="wGo">Faire tourner</button></div></div>
+      <div class="card"><h3>🎰 Roulette & réglages</h3>
+        <div class="row"><label>!roulette activée</label><input type="checkbox" id="gRoulette"></div>
+        <div class="row"><label>Gain quiz</label><input type="number" id="gRQuiz"></div>
+        <div class="row"><label>Gain course</label><input type="number" id="gRCourse"></div>
+        <div class="row"><label>Gain devine</label><input type="number" id="gRDevine"></div>
+        <div class="row"><label>Durée quiz (s)</label><input type="number" id="gDQuiz"></div>
+        <div class="row"><label>Inscriptions course (s)</label><input type="number" id="gDCourse"></div></div>
+    </div>
+    <h3>Questions du quiz (une par ligne : question | réponse | autre réponse)</h3>
+    <textarea id="quizList" style="min-height:180px"></textarea>
+    <div class="row"><button class="btn primary" id="saveGames">Enregistrer les réglages</button></div>
+  </section>
+
+  <!-- ======== CLASSEMENT ======== -->
+  <section id="tab-board">
+    <div class="card"><table><thead><tr><th>#</th><th>Plateforme</th><th>Spectateur</th><th>Points</th></tr></thead><tbody id="board"></tbody></table></div>
+    <div class="row"><button class="btn danger" id="resetPoints">Remettre tous les points à zéro</button></div>
+  </section>
+
+  <!-- ======== CONNEXIONS ======== -->
+  <section id="tab-conn">
+    <div class="cols">
+      <div class="card"><h3><span class="tag" style="background:#302e31">OBS</span> OBS Studio</h3>
+
+  
+  <p class="hint">OBS &gt; Outils &gt; <b>Paramètres du serveur WebSocket</b> &gt; coche « Activer le serveur WebSocket », puis « Afficher les infos de connexion » et colle le mot de passe ici.</p>
+  <div class="row"><label>Mot de passe</label><input type="password" id="pwd"></div>
+  <div class="row"><label>Port</label><input type="number" id="port" value="4455"></div>
+  <div class="row"><span></span><button class="btn primary" id="connect">Se connecter</button></div>
+        <p class="hint" id="obsInfo"></p></div>
+      <div class="card"><h3><span class="tag tw">TWITCH</span> Twitch</h3>
+        <div class="row"><label>Pseudo de la chaîne</label><input type="text" id="twChannel"></div>
+        <div class="row"><label>Client ID</label><input type="text" id="twClient" placeholder="dev.twitch.tv/console"></div>
+        <div class="row"><button class="btn" id="twSave">Enregistrer</button> <a class="btn primary" id="twLogin" href="/api/twitch/auth" target="_blank">Se connecter à Twitch</a> <button class="btn danger small" id="twLogout">Déconnecter</button></div>
+        <p class="hint" id="twInfo"></p>
+        <details><summary class="hint">Comment obtenir le Client ID ?</summary>
+          <ol class="hint"><li>Va sur <code>dev.twitch.tv/console</code> → <b>Enregistrer votre application</b>.</li>
+            <li>URL de redirection OAuth : <code id="twRedirect"></code></li>
+            <li>Catégorie : <b>Chat Bot</b>, type de client : <b>Public</b> → Créer.</li>
+            <li>Copie le <b>Client ID</b> ici, enregistre, puis clique « Se connecter à Twitch ».</li></ol></details></div>
+      <div class="card"><h3><span class="tag tt">TIKTOK</span> TikTok</h3>
+        <div class="row"><label>Pseudo TikTok</label><input type="text" id="ttUser" placeholder="@ton_pseudo"></div>
+        <div class="row"><button class="btn" id="ttSave">Enregistrer et connecter</button></div>
+        <p class="hint">Le Hub se connecte tout seul dès que tu lances un live (vérification chaque minute).</p></div>
+      <div class="card"><h3><span class="tag yt">YOUTUBE</span> YouTube</h3>
+        <div class="row"><label>Chaîne ou vidéo</label><input type="text" id="ytChan" placeholder="@ta_chaine ou lien du live"></div>
+        <div class="row"><button class="btn" id="ytSave">Enregistrer et connecter</button></div>
+        <p class="hint">Détecte automatiquement ton live en cours sur la chaîne.</p></div>
+      <div class="card"><h3><span class="tag se">DONS</span> StreamElements</h3>
+        <div class="row"><label>Jeton JWT</label><input type="password" id="seJwt" placeholder="laisser vide pour garder l'actuel"></div>
+        <div class="row"><button class="btn" id="seSave">Enregistrer</button></div>
+        <p class="hint">streamelements.com → Mon compte → Chaînes → « Show secrets » → JWT Token. Ta page de don StreamElements déclenche alors les alertes.</p></div>
+    </div>
+    <h3>Tester les alertes</h3>
+    <div class="row" id="tests"></div>
+    <h3>Overlays à ajouter dans OBS (source navigateur)</h3>
+    <div class="card hint" id="overlayList"></div>
+    <div class="card" id="updCard" style="margin-top:10px"><h3>Mises à jour de BL Studio</h3>
+      <div class="row"><label>Version installée</label><b id="updCur"></b></div>
+      <div class="row"><label>Dernière version</label><span id="updLatest">…</span></div>
+      <p class="hint" id="updState"></p>
+      <pre class="hint" id="updNotes" style="white-space:pre-wrap;margin:0 0 6px;font:inherit"></pre>
+      <div class="row"><button class="btn" id="updCheck">Vérifier maintenant</button><button class="btn primary" id="updInstall" hidden>Installer la mise à jour</button></div>
+      <label class="row" style="margin:0"><input type="checkbox" id="updAuto"> Installer automatiquement les mises à jour (jamais pendant un live)</label>
+      <p class="hint">Tes réglages, jetons, points et ton logo sont conservés à chaque mise à jour.</p>
+    </div>
+  </section>
+
+</main>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+// ===== Hub : stats, chat, alertes, bot, mini-jeux, classement, connexions =====
+(() => {
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const TAG = { twitch: ["TW", "tw"], tiktok: ["TT", "tt"], youtube: ["YT", "yt"], streamelements: ["€", "se"], bot: ["BOT", "bot"] };
+const tag = p => `<span class="tag ${(TAG[p] || ["?", ""])[1]}">${(TAG[p] || [p])[0]}</span>`;
+const EVN = { follow: "follow", sub: "abonnement", giftsub: "abos offerts", bits: "bits", raid: "raid", gift: "cadeau", share: "partage", superchat: "Super Chat", member: "membre", donation: "don" };
+let S = null;
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 1800); }
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-BL": "1" }, body: JSON.stringify(body || {}) });
+  return r.json();
+}
+const saveSection = async (section, data, msg = "Enregistré") => { const r = await post("/api/config", { section, data }); if (r.state) { S = r.state; } toast(msg); };
+
+
+// ---------- Statuts ----------
+function renderLights(st) {
+  const L = [["Twitch chat", st.twitch.chat], ["Twitch alertes", st.twitch.events], ["TikTok", st.tiktok.live], ["YouTube", st.youtube.live], ["Dons", st.streamelements.state]];
+  $("lights").innerHTML = L.map(([n, s]) => `<span class="light ${s}"><i></i>${n}</span>`).join("");
+  $("twInfo").textContent = st.twitch.detail || "";
+}
+
+// ---------- Stats ----------
+const fmt = n => (n ?? 0).toLocaleString("fr-FR");
+function renderStats(st) {
+  const sum = o => (o.twitch || 0) + (o.tiktok || 0) + (o.youtube || 0);
+  const per = o => `TW ${fmt(o.twitch)} · TT ${fmt(o.tiktok)} · YT ${fmt(o.youtube)}`;
+  const ev = st.events;
+  const cards = [
+    ["Spectateurs", sum(st.viewers), per(st.viewers)], ["Pic de spectateurs", sum(st.peak), per(st.peak)],
+    ["Messages", sum(st.messages), per(st.messages)], ["Chatteurs uniques", sum(st.chatters), per(st.chatters)],
+    ["Follows", ev.follow, "Twitch + TikTok"], ["Abonnements / membres", ev.sub + ev.member + ev.giftsub, `${ev.giftsub} offerts`],
+    ["Dons", `${fmt(st.donations)} €`, `${ev.donation} don(s)`], ["Super Chats", `${fmt(st.superchats)} €`, `${ev.superchat} Super Chat(s)`],
+    ["Bits", st.bits, `${ev.bits} cheer(s)`], ["Diamants TikTok", st.diamonds, `${ev.gift} cadeau(x)`],
+    ["Likes TikTok", st.likes, `${ev.share} partage(s)`], ["Raids", ev.raid, `Total follows : ${fmt(st.allTime.follow || 0)}`],
+  ];
+  $("statCards").innerHTML = cards.map(([k, v, s]) => `<div class="card stat"><div class="k">${k}</div><div class="v">${typeof v === "number" ? fmt(v) : v}</div><div class="s">${s}</div></div>`).join("");
+  $("topChat").innerHTML = st.topChatters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  $("topSup").innerHTML = st.topSupporters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value} €</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  $("recent").innerHTML = st.recent.map(r => `<li>${tag(r.platform)} ${esc(r.user)} <span class="hint">${EVN[r.type] || r.type}${r.gift ? ` · ${esc(r.gift)}` : ""}${r.amount ? ` · ${r.amount}` : ""}</span><span class="val">${new Date(r.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  drawChart(st);
+}
+
+function drawChart(st) {
+  const c = $("chart"), ctx = c.getContext("2d"), W = c.width, H = c.height;
+  const pts = [...st.timeline, { ...st.current, viewers: (st.viewers.twitch || 0) + (st.viewers.tiktok || 0) + (st.viewers.youtube || 0) }].slice(-60);
+  ctx.clearRect(0, 0, W, H);
+  const maxMsg = Math.max(5, ...pts.map(p => (p.twitch || 0) + (p.tiktok || 0) + (p.youtube || 0)));
+  const maxV = Math.max(5, ...pts.map(p => p.viewers || 0));
+  const bw = W / 60;
+  ctx.strokeStyle = "#2a221d"; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
+  pts.forEach((p, i) => {
+    let y = H;
+    for (const [k, col] of [["twitch", "#9146ff"], ["tiktok", "#fe2c55"], ["youtube", "#ff3b3b"]]) {
+      const h = (p[k] || 0) / maxMsg * (H - 20);
+      ctx.fillStyle = col; ctx.fillRect(i * bw + 2, y - h, bw - 4, h); y -= h;
+    }
+  });
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((p, i) => { const x = i * bw + bw / 2, y = H - (p.viewers || 0) / maxV * (H - 20); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.stroke();
+  ctx.fillStyle = "#a3958a"; ctx.font = "11px Segoe UI"; ctx.fillText(`max ${maxMsg} msg/min · ${maxV} spectateurs`, 6, 14);
+}
+
+setInterval(() => {
+  if (!S) return;
+  const m = Math.floor((Date.now() - S.stats.startedAt) / 60000);
+  $("uptime").textContent = `Session : ${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+}, 1000);
+$("resetStats").onclick = async () => { if (confirm("Remettre les stats de la session à zéro ?")) { await post("/api/stats/reset"); load(); } };
+
+// ---------- Chat ----------
+const chatFilters = () => [...document.querySelectorAll(".cf")].filter(c => c.checked).map(c => c.value);
+function addChat(e) {
+  const isEv = e.type !== "chat";
+  if (isEv && !EVN[e.type]) return;
+  const box = $("chat"), atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const div = document.createElement("div");
+  const mention = $("mention").value.trim().toLowerCase();
+  div.className = `cm${isEv ? " ev" : ""}${!isEv && mention && e.message?.toLowerCase().includes(mention) ? " mention" : ""}`;
+  div.dataset.p = e.platform; div.dataset.ev = isEv ? 1 : 0;
+  const time = new Date(e.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  div.innerHTML = `<time>${time}</time> ${tag(e.platform)}<span class="n" style="color:${e.color || "#f1e9e2"}">${esc(e.user)}</span>${isEv
+    ? `<b>${EVN[e.type]}</b> ${e.gift ? `${e.amount}× ${esc(e.gift)}` : e.amount ? esc(e.amountText || e.amount) : ""} ${e.message ? `— ${esc(e.message)}` : ""}`
+    : esc(e.message)}${e.platform === "bot" && e.replyTo && !e.sent ? ` <span class="hint">(non envoyé : ${e.replyTo === "twitch" ? "connexion Twitch requise" : "lecture seule"})</span>` : ""}`;
+  applyFilter(div);
+  box.appendChild(div);
+  while (box.children.length > 400) box.firstChild.remove();
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function applyFilter(div) {
+  const f = chatFilters();
+  div.hidden = !f.includes(div.dataset.p) && !(div.dataset.p === "streamelements") || (div.dataset.ev === "1" && !$("cfEvents").checked);
+}
+document.querySelectorAll(".cf, #cfEvents").forEach(c => c.onchange = () => $("chat").querySelectorAll(".cm").forEach(applyFilter));
+const sendSay = async () => { const t = $("say").value.trim(); if (!t) return; $("say").value = ""; const r = await post("/api/say", { text: t }); if (!r.sent) toast("Non envoyé : connecte-toi à Twitch (onglet Connexions)"); };
+$("sayBtn").onclick = sendSay; $("say").onkeydown = e => { if (e.key === "Enter") sendSay(); };
+
+// ---------- Alertes ----------
+const ALABEL = { follow: "Follow (Twitch/TikTok)", sub: "Abonnement Twitch", giftsub: "Abos offerts", bits: "Bits Twitch", raid: "Raid Twitch",
+  gift: "Cadeau TikTok (min. diamants)", share: "Partage TikTok", superchat: "Super Chat YouTube", member: "Membre YouTube", donation: "Don (min. €)" };
+function renderAlerts(a) {
+  $("aOn").checked = a.enabled; $("aDur").value = a.duration; $("aSound").checked = a.sound; $("aVol").value = a.volume; $("aTts").checked = a.tts;
+  $("aTypes").innerHTML = Object.entries(a.types).map(([k, t]) => `<tr data-k="${k}"><td><input type="checkbox" class="on" ${t.on ? "checked" : ""}></td>
+    <td>${ALABEL[k] || k}</td><td><input type="number" class="min" value="${t.min}"></td><td><input type="text" class="text" value="${esc(t.text)}"></td>
+    <td><button class="btn small test">Tester</button></td></tr>`).join("");
+  $("aTypes").querySelectorAll(".test").forEach(b => b.onclick = () => post("/api/test", { type: b.closest("tr").dataset.k }));
+}
+$("saveAlerts").onclick = () => {
+  const types = {};
+  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value });
+  saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, "Alertes enregistrées");
+};
+
+// ---------- Bot ----------
+function rowCmd(c = { enabled: true, cmd: "!", response: "", cooldown: 10 }) {
+  return `<tr><td><input type="checkbox" class="on" ${c.enabled ? "checked" : ""}></td><td><input type="text" class="cmd" value="${esc(c.cmd)}"></td>
+    <td><input type="text" class="resp" value="${esc(c.response)}"></td><td><input type="number" class="cd" value="${c.cooldown}"></td><td><button class="btn small danger del">✕</button></td></tr>`;
+}
+function rowTimer(t = { enabled: true, message: "", minutes: 15 }) {
+  return `<tr><td><input type="checkbox" class="on" ${t.enabled ? "checked" : ""}></td><td><input type="text" class="msg" value="${esc(t.message)}"></td>
+    <td><input type="number" class="min" value="${t.minutes}"></td><td><button class="btn small danger del">✕</button></td></tr>`;
+}
+const bindDel = el => el.querySelectorAll(".del").forEach(b => b.onclick = () => b.closest("tr").remove());
+function renderBot(b) {
+  $("bOn").checked = b.enabled; $("bName").value = b.name; $("bPts").value = b.pointsName;
+  const r = b.rewards;
+  $("rChat").value = r.chat; $("rFollow").value = r.follow; $("rShare").value = r.share; $("rSub").value = r.sub; $("rBit").value = r.perBit; $("rDiamond").value = r.perDiamond; $("rEuro").value = r.perEuro;
+  $("cmds").innerHTML = b.commands.map(rowCmd).join(""); bindDel($("cmds"));
+  $("timers").innerHTML = b.timers.map(rowTimer).join(""); bindDel($("timers"));
+}
+$("addCmd").onclick = () => { $("cmds").insertAdjacentHTML("beforeend", rowCmd()); bindDel($("cmds")); };
+$("addTimer").onclick = () => { $("timers").insertAdjacentHTML("beforeend", rowTimer()); bindDel($("timers")); };
+$("saveBot").onclick = () => saveSection("bot", {
+  enabled: $("bOn").checked, name: $("bName").value, pointsName: $("bPts").value,
+  rewards: { chat: +$("rChat").value, follow: +$("rFollow").value, share: +$("rShare").value, sub: +$("rSub").value, perBit: +$("rBit").value, perDiamond: +$("rDiamond").value, perEuro: +$("rEuro").value },
+  commands: [...$("cmds").querySelectorAll("tr")].map(tr => ({ enabled: tr.querySelector(".on").checked, cmd: tr.querySelector(".cmd").value.trim(), response: tr.querySelector(".resp").value, cooldown: +tr.querySelector(".cd").value })).filter(c => c.cmd.length > 1),
+  timers: [...$("timers").querySelectorAll("tr")].map(tr => ({ enabled: tr.querySelector(".on").checked, message: tr.querySelector(".msg").value, minutes: Math.max(1, +tr.querySelector(".min").value) })).filter(t => t.message),
+}, "Bot enregistré");
+
+// ---------- Mini-jeux ----------
+const GNAME = { quiz: "Quiz", course: "Course", sondage: "Sondage", devine: "Devine le nombre", roue: "Roue des gages" };
+function renderGame(g) { $("gNow").textContent = g ? `${GNAME[g.type] || g.type} (${g.phase})` : "aucun"; }
+function renderGames(g) {
+  $("gRoulette").checked = g.roulette; $("wGift").value = g.wheelGift || ""; $("wSeg").value = g.wheel.join("\n");
+  $("gRQuiz").value = g.rewards.quiz; $("gRCourse").value = g.rewards.course; $("gRDevine").value = g.rewards.devine;
+  $("gDQuiz").value = g.durations.quiz; $("gDCourse").value = g.durations.course;
+  $("quizList").value = g.quiz.map(x => `${x.q} | ${x.a.split("|").join(" | ")}`).join("\n");
+}
+const game = (action, options) => post("/api/game", { action, options });
+document.querySelectorAll("[data-game]").forEach(b => b.onclick = () => game(b.dataset.game));
+$("qGo").onclick = () => { if ($("qQ").value && $("qA").value) game("quiz", { question: $("qQ").value, answers: $("qA").value }); };
+$("pGo").onclick = () => game("sondage", { question: $("pQ").value || "Sondage", options: $("pO").value.split("\n").map(s => s.trim()).filter(Boolean), duration: +$("pD").value });
+$("dGo").onclick = () => game("devine", { max: +$("dMax").value || 100 });
+$("wGo").onclick = () => game("roue", { segments: $("wSeg").value.split("\n").map(s => s.trim()).filter(Boolean) });
+$("gStop").onclick = () => game("stop");
+$("saveGames").onclick = () => saveSection("games", {
+  roulette: $("gRoulette").checked, wheelGift: $("wGift").value.trim(), wheel: $("wSeg").value.split("\n").map(s => s.trim()).filter(Boolean),
+  rewards: { quiz: +$("gRQuiz").value, course: +$("gRCourse").value, devine: +$("gRDevine").value },
+  durations: { ...S.config.games.durations, quiz: +$("gDQuiz").value, course: +$("gDCourse").value },
+  quiz: $("quizList").value.split("\n").map(l => l.split("|").map(s => s.trim())).filter(p => p.length >= 2 && p[0]).map(([q, ...a]) => ({ q, a: a.join("|").toLowerCase() })),
+}, "Mini-jeux enregistrés");
+
+// ---------- Classement ----------
+function renderBoard(list) {
+  $("board").innerHTML = list.map((p, i) => `<tr><td>${i + 1}</td><td>${tag(p.platform)}</td><td>${esc(p.user)}</td><td><b>${fmt(p.points)}</b></td></tr>`).join("") || `<tr><td colspan="4" class="hint">Aucun point pour l'instant</td></tr>`;
+}
+$("resetPoints").onclick = async () => { if (confirm("Remettre les points de tout le monde à zéro ?")) { const r = await post("/api/points", { action: "reset" }); renderBoard(r.leaderboard); } };
+
+// ---------- Connexions ----------
+function renderConn(c) {
+  $("twChannel").value = c.twitch.channel; $("twClient").value = c.twitch.clientId; $("twRedirect").textContent = c.twitch.redirect;
+  $("twLogin").textContent = c.twitch.hasToken ? `Reconnecter (${c.twitch.login || "connecté"})` : "Se connecter à Twitch";
+  $("ttUser").value = c.tiktok.username; $("ytChan").value = c.youtube.channel;
+  $("seJwt").placeholder = c.streamelements.hasJwt ? "jeton enregistré (laisser vide pour le garder)" : "colle ton JWT ici";
+}
+$("twSave").onclick = () => saveSection("twitch", { channel: $("twChannel").value.trim(), clientId: $("twClient").value.trim() }, "Twitch enregistré");
+$("twLogin").onclick = e => { if (!$("twClient").value.trim()) { e.preventDefault(); toast("Renseigne d'abord le Client ID"); } };
+$("twLogout").onclick = async () => { await post("/api/twitch/logout"); toast("Déconnecté de Twitch"); load(); };
+$("ttSave").onclick = () => saveSection("tiktok", { username: $("ttUser").value.trim() }, "TikTok : connexion…");
+$("ytSave").onclick = () => saveSection("youtube", { channel: $("ytChan").value.trim() }, "YouTube : connexion…");
+$("seSave").onclick = () => { saveSection("streamelements", { jwt: $("seJwt").value.trim() }, "StreamElements enregistré"); $("seJwt").value = ""; };
+$("tests").innerHTML = Object.keys(ALABEL).map(k => `<button class="btn small" data-t="${k}">${ALABEL[k].split(" (")[0]}</button>`).join("") + `<button class="btn small" data-t="chat">Message TikTok</button>`;
+$("tests").querySelectorAll("button").forEach(b => b.onclick = () => post("/api/test", { type: b.dataset.t }));
+// dossier d'installation fourni par le Hub (aucun chemin en dur)
+fetch("/api/paths").then(r => r.json()).then(({ fileBase }) => {
+$("overlayList").innerHTML = [
+  ["Alertes", "alertes.html?theme=sunset&style=carte&anim=glisse", "1000 × 400"],
+  ["Chat unifié", "chat-unifie.html?theme=sunset&style=carte&evenements=1", "520 × 700"],
+  ["Mini-jeux", "minijeux.html?theme=sunset&style=carte", "1920 × 1080"],
+  ["Derniers soutiens", "soutiens.html?theme=sunset&style=carte", "620 × 120"],
+].map(([n, u, s]) => `<div class="row"><b style="flex:0 0 130px">${n}</b><code>${fileBase}${u}</code><span>${s}</span></div>`).join("") +
+  `<p>Déjà présents dans tes scènes OBS (dossier « Hub »). Options : style=${Object.keys(BL_STYLES).join("|")}, font=${Object.keys(BL_FONTS).join("|")}, anim=glisse|pop|gta|bandeau.</p>`;
+}).catch(() => {});
+
+// ---------- Mises à jour ----------
+let reloadPlanned = false;
+function renderUpdate(u) {
+  if (!u) return;
+  $("updCur").textContent = u.current || "?";
+  $("updLatest").textContent = u.latest || "…";
+  $("updAuto").checked = S?.config?.updates?.auto !== false;
+  $("updState").textContent = u.installing ? (u.restarting ? "Mise à jour installée : redémarrage…" : "Téléchargement et installation…")
+    : u.available ? `La version ${u.latest} est disponible.` : u.error || (u.checkedAt ? "BL Studio est à jour." : "Vérification au démarrage…");
+  $("updInstall").hidden = !u.available || u.installing;
+  $("updNotes").textContent = u.available ? u.notes : "";
+  $("updBtn").hidden = !u.available;
+  if (u.restarting && !reloadPlanned) { reloadPlanned = true; toast("Mise à jour installée"); setTimeout(() => location.reload(), 7000); }
+}
+$("updCheck").onclick = async () => { $("updState").textContent = "Vérification…"; renderUpdate(await post("/api/update/check")); };
+$("updInstall").onclick = async () => { await post("/api/update/install"); toast("Installation de la mise à jour…"); };
+$("updAuto").onchange = e => saveSection("updates", { auto: e.target.checked }, e.target.checked ? "Mises à jour automatiques activées" : "Mises à jour automatiques désactivées");
+$("updBtn").onclick = () => document.querySelector('[data-tab="conn"]').click();
+
+// ---------- Chargement + temps réel ----------
+async function load() {
+  S = await (await fetch("/api/state")).json();
+  renderLights(S.status); renderStats(S.stats); renderAlerts(S.config.alerts); renderBot(S.config.bot);
+  renderGames(S.config.games); renderGame(S.game); renderBoard(S.leaderboard); renderConn(S.config);
+  $("chat").innerHTML = ""; S.chat.forEach(addChat);
+  renderUpdate(S.update);
+}
+function live() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.kind === "status") renderLights(m.status);
+    if (m.kind === "event") { addChat(m.event); if (m.event.type !== "chat") refreshStats(); }
+    if (m.kind === "stats") { S.stats = m.stats; renderStats(m.stats); }
+    if (m.kind === "game") renderGame(m.state);
+    if (m.kind === "update") renderUpdate(m.update);
+  };
+  ws.onclose = () => setTimeout(live, 3000);
+}
+let statTimer = null;
+function refreshStats() { clearTimeout(statTimer); statTimer = setTimeout(async () => { const s = await (await fetch("/api/state")).json(); S.stats = s.stats; renderStats(s.stats); renderBoard(s.leaderboard); }, 800); }
+setInterval(refreshStats, 15000);
+load(); live();
+
+})();
+// ===== OBS : scènes, DA, widgets, textes, transitions (obs-websocket) =====
+(() => {
+
+// ---------- SHA-256 (pour l'authentification obs-websocket) ----------
+function sha256(bytes) {
+  const K = new Uint32Array([0x428a2f98,0x71374491,0xb5c0fbcf,0xe9b5dba5,0x3956c25b,0x59f111f1,0x923f82a4,0xab1c5ed5,0xd807aa98,0x12835b01,0x243185be,0x550c7dc3,0x72be5d74,0x80deb1fe,0x9bdc06a7,0xc19bf174,0xe49b69c1,0xefbe4786,0x0fc19dc6,0x240ca1cc,0x2de92c6f,0x4a7484aa,0x5cb0a9dc,0x76f988da,0x983e5152,0xa831c66d,0xb00327c8,0xbf597fc7,0xc6e00bf3,0xd5a79147,0x06ca6351,0x14292967,0x27b70a85,0x2e1b2138,0x4d2c6dfc,0x53380d13,0x650a7354,0x766a0abb,0x81c2c92e,0x92722c85,0xa2bfe8a1,0xa81a664b,0xc24b8b70,0xc76c51a3,0xd192e819,0xd6990624,0xf40e3585,0x106aa070,0x19a4c116,0x1e376c08,0x2748774c,0x34b0bcb5,0x391c0cb3,0x4ed8aa4a,0x5b9cca4f,0x682e6ff3,0x748f82ee,0x78a5636f,0x84c87814,0x8cc70208,0x90befffa,0xa4506ceb,0xbef9a3f7,0xc67178f2]);
+  const H = new Uint32Array([0x6a09e667,0xbb67ae85,0x3c6ef372,0xa54ff53a,0x510e527f,0x9b05688c,0x1f83d9ab,0x5be0cd19]);
+  const l = bytes.length, n = ((l + 9 + 63) >> 6) << 6, m = new Uint8Array(n);
+  m.set(bytes); m[l] = 0x80;
+  const dv = new DataView(m.buffer); dv.setUint32(n - 4, l * 8); dv.setUint32(n - 8, Math.floor(l / 0x20000000));
+  const w = new Uint32Array(64), r = (x, s) => (x >>> s) | (x << (32 - s));
+  for (let o = 0; o < n; o += 64) {
+    for (let i = 0; i < 16; i++) w[i] = dv.getUint32(o + i * 4);
+    for (let i = 16; i < 64; i++) {
+      const s0 = r(w[i-15],7) ^ r(w[i-15],18) ^ (w[i-15] >>> 3), s1 = r(w[i-2],17) ^ r(w[i-2],19) ^ (w[i-2] >>> 10);
+      w[i] = (w[i-16] + s0 + w[i-7] + s1) >>> 0;
+    }
+    let [a, b, c, d, e, f, g, h] = H;
+    for (let i = 0; i < 64; i++) {
+      const t1 = (h + (r(e,6) ^ r(e,11) ^ r(e,25)) + ((e & f) ^ (~e & g)) + K[i] + w[i]) >>> 0;
+      const t2 = ((r(a,2) ^ r(a,13) ^ r(a,22)) + ((a & b) ^ (a & c) ^ (b & c))) >>> 0;
+      h = g; g = f; f = e; e = (d + t1) >>> 0; d = c; c = b; b = a; a = (t1 + t2) >>> 0;
+    }
+    H[0] += a; H[1] += b; H[2] += c; H[3] += d; H[4] += e; H[5] += f; H[6] += g; H[7] += h;
+  }
+  const out = new Uint8Array(32), odv = new DataView(out.buffer);
+  H.forEach((v, i) => odv.setUint32(i * 4, v));
+  return out;
+}
+const b64sha = s => btoa(String.fromCharCode(...sha256(new TextEncoder().encode(s))));
+
+// ---------- Client obs-websocket v5 ----------
+let ws, reqId = 0;
+const pending = new Map();
+const call = (requestType, requestData = {}) => new Promise((resolve, reject) => {
+  const requestId = String(++reqId);
+  pending.set(requestId, { resolve, reject });
+  ws.send(JSON.stringify({ op: 6, d: { requestType, requestId, requestData } }));
+});
+
+function connect() {
+  const pwd = $("pwd").value, port = $("port").value || 4455;
+  try { localStorage.setItem("bl_pwd", pwd); localStorage.setItem("bl_port", port); } catch {}
+  setStatus("Connexion…");
+  ws = new WebSocket(`ws://127.0.0.1:${port}`);
+  ws.onmessage = e => {
+    const { op, d } = JSON.parse(e.data);
+    if (op === 0) {
+      const ident = { rpcVersion: 1, eventSubscriptions: 1 | 4 | 8 | 16 | 64 | 128 };
+      if (d.authentication) ident.authentication = b64sha(b64sha(pwd + d.authentication.salt) + d.authentication.challenge);
+      ws.send(JSON.stringify({ op: 1, d: ident }));
+    } else if (op === 2) {
+      setStatus("Connecté", true);
+      
+      refreshAll();
+    } else if (op === 7) {
+      const p = pending.get(d.requestId); pending.delete(d.requestId);
+      if (!p) return;
+      d.requestStatus.result ? p.resolve(d.responseData || {}) : p.reject(new Error(d.requestStatus.comment || "Erreur"));
+    } else if (op === 5) onEvent(d.eventType, d.eventData);
+  };
+  ws.onclose = e => {
+    setStatus(e.code === 4009 ? "Mot de passe incorrect" : "Déconnecté");
+    
+  };
+}
+
+// ---------- Dossier d'installation (fourni par le Hub, sinon déduit de l'adresse de la page) ----------
+const HUB = location.protocol.startsWith("http") ? "" : "http://127.0.0.1:3939";
+let FILE_BASE = location.protocol === "file:" ? location.href.replace(/[^/]*$/, "") : "";
+let ROOT_DIR = FILE_BASE.replace(/^file:\/\/\//, "");
+fetch(HUB + "/api/paths").then(r => r.json()).then(p => { FILE_BASE = p.fileBase; ROOT_DIR = p.root + "/"; }).catch(() => {});
+
+// ---------- Utilitaires ----------
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function setStatus(t, ok) { const l = $("obsLight"); l.className = "light " + (ok ? "on" : /Connexion/.test(t) ? "connecting" : "error"); $("obsInfo").textContent = t; document.body.classList.toggle("obs-on", !!ok); }
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 1600); }
+const abgr = hex => { const n = parseInt(hex.slice(1), 16); return (0xff000000 | ((n & 255) << 16) | (n & 0xff00) | (n >> 16)) >>> 0; };
+const page = url => (url.match(/([\w-]+\.html)/) || [])[1];
+const store = (k, v) => { try { v === undefined ? (v = JSON.parse(localStorage.getItem(k))) : localStorage.setItem(k, JSON.stringify(v)); } catch {} return v; };
+
+let scenes = [], current = "", selected = "", inputs = [], isVertical = false;
+
+async function refreshAll() {
+  const vs = await call("GetVideoSettings");
+  isVertical = vs.baseHeight > vs.baseWidth;
+  const sl = await call("GetSceneList");
+  scenes = sl.scenes.map(s => s.sceneName).reverse();
+  current = sl.currentProgramSceneName;
+  if (!scenes.includes(selected)) selected = current;
+  inputs = (await call("GetInputList")).inputs;
+  renderScenes(); await renderItems(); renderDA(); loadIdentity(); await renderWidgets(); await renderTexts(); await renderTransitions(); renderStingers(); renderDests();
+}
+
+let linkV = store("bl_linkv") ?? true;
+async function syncVertical(scene) {
+  if (!linkV) return;
+  try {
+    await call("CallVendorRequest", { vendorName: "aitum-vertical-canvas", requestType: "switch_scene", requestData: { scene: `V · ${scene}` } });
+    $("linkStatus").textContent = `Vertical : « V · ${scene} »`;
+  } catch (e) { $("linkStatus").textContent = `Vertical non changé (${e.message}). Pas de scène « V · ${scene} » ?`; }
+}
+function onEvent(type, data) {
+  if (type === "CurrentProgramSceneChanged") { current = data.sceneName; renderScenes(); syncVertical(current); }
+  if (type === "SceneItemEnableStateChanged") renderItems();
+  if (["SceneListChanged", "InputCreated", "InputRemoved", "InputNameChanged", "CurrentSceneCollectionChanged"].includes(type)) refreshAll();
+  if (type === "CurrentSceneTransitionChanged") renderTransitions();
+  if (type === "StreamStateChanged") renderDests();
+}
+
+// ---------- Onglet Scènes ----------
+function renderScenes() {
+  $("sceneButtons").innerHTML = scenes.map(s =>
+    `<button class="btn scene ${s === current ? "live" : ""}" data-s="${esc(s)}">${s === current ? "● " : ""}${esc(s)}</button>`).join("");
+  $("sceneButtons").querySelectorAll("button").forEach(b => {
+    b.onclick = async () => { selected = b.dataset.s; await call("SetCurrentProgramScene", { sceneName: selected }); renderItems(); };
+  });
+}
+
+async function renderItems() {
+  $("selScene").textContent = `« ${selected} »`;
+  const { sceneItems } = await call("GetSceneItemList", { sceneName: selected });
+  const rows = [];
+  for (const it of sceneItems.slice().reverse()) {
+    rows.push({ scene: selected, it, child: false });
+    if (it.isGroup) {
+      const g = await call("GetGroupSceneItemList", { sceneName: it.sourceName });
+      for (const c of g.sceneItems.slice().reverse()) rows.push({ scene: it.sourceName, it: c, child: true });
+    }
+  }
+  $("sceneItems").innerHTML = rows.map((r, i) =>
+    `<div class="item ${r.child ? "child" : ""} ${r.it.sceneItemEnabled ? "" : "off"}">
+       <button class="eye ${r.it.sceneItemEnabled ? "on" : ""}" data-i="${i}" title="Afficher / masquer">${r.it.sceneItemEnabled ? "👁" : "—"}</button>
+       <span>${r.it.isGroup ? "📁 " : ""}${esc(r.it.sourceName)}</span></div>`).join("") || `<p class="hint">Scène vide.</p>`;
+  $("sceneItems").querySelectorAll(".eye").forEach(b => {
+    b.onclick = async () => {
+      const r = rows[b.dataset.i];
+      await call("SetSceneItemEnabled", { sceneName: r.scene, sceneItemId: r.it.sceneItemId, sceneItemEnabled: !r.it.sceneItemEnabled });
+      renderItems();
+    };
+  });
+}
+
+$("restartCd").onclick = async () => {
+  for (const i of inputs.filter(i => i.inputKind === "browser_source")) {
+    const { inputSettings } = await call("GetInputSettings", { inputName: i.inputName });
+    if ((inputSettings.url || "").includes("w=countdown")) await call("PressInputPropertiesButton", { inputName: i.inputName, propertyName: "refreshnocache" });
+  }
+  toast("Comptes à rebours relancés");
+};
+
+// ---------- Onglet DA ----------
+let da = { font: "impact", theme: "sunset", anim: "formes", vitesse: 1, densite: 1, traits: true, bandes: true, eclairs: true, grain: true, style: "carte", aanim: "glisse", stinger: "bandes", arrondi: 1, lueur: 0, ...(store("bl_da") || {}) };
+let customs = store("bl_custom") || {};
+const allThemes = () => ({ ...BL_THEMES, ...Object.fromEntries(Object.entries(customs).map(([k, t]) => [`custom:${k}`, t])) });
+const COLOR_KEYS = ["c1", "c2", "c3", "bg1", "bg2", "sub"];
+const STYLES = BL_STYLES;
+const themeQuery = () => {
+  const t = allThemes()[da.theme] || BL_THEMES.sunset;
+  return da.theme.startsWith("custom:")
+    ? "theme=sunset&" + COLOR_KEYS.map(k => `${k}=${t[k].slice(1)}`).join("&")
+    : `theme=${da.theme}`;
+};
+const fontQuery = () => (da.font && da.font !== "impact" ? `&font=${da.font}` : "");
+function renderStyleCards() {
+  $("styleCards").innerHTML = Object.entries(STYLES).map(([k, [label, desc]]) =>
+    `<div class="stylecard ${k === da.style ? "on" : ""}" data-k="${k}">
+       <iframe class="preview" style="aspect-ratio:560/140" src="/widget.html?w=badge&style=${k}&${themeQuery()}${fontQuery()}&title=${encodeURIComponent((brand?.name || "Ma chaîne").toUpperCase())}&sub=${encodeURIComponent(brand?.tagline || "Live")}" loading="lazy"></iframe>
+       <iframe class="preview" style="aspect-ratio:300/110;width:60%;margin:4px 0 0 auto" src="/widget.html?w=clock&style=${k}&${themeQuery()}${fontQuery()}" loading="lazy"></iframe>
+       <b>${label}</b><small>${desc}</small></div>`).join("");
+  $("styleCards").querySelectorAll(".stylecard").forEach(c => c.onclick = () => {
+    da.style = c.dataset.k; $("wstyle").value = da.style; renderStyleCards(); renderPacks();
+  });
+}
+function paintStudio() {
+  const t = allThemes()[da.theme] || BL_THEMES.sunset, r = document.documentElement.style;
+  r.setProperty("--hi", t.c1); r.setProperty("--acc", t.c2); r.setProperty("--acc2", t.c3); r.setProperty("--tb1", t.bg1); r.setProperty("--tb2", t.bg2);
+  const n = parseInt(t.c2.slice(1), 16), lum = (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255;
+  r.setProperty("--on-acc", lum > 0.55 ? "#111" : "#fff");
+}
+const packOn = p => da.theme === p.theme && da.font === p.font && da.style === p.style && da.anim === p.anim && da.stinger === p.stinger;
+function renderPacks() {
+  const fams = [...new Set(Object.values(BL_PACKS).map(p => BL_FONTS[p.font].g).filter(Boolean))];
+  if (fams.length && !document.querySelector("link[data-packfonts]")) {
+    const l = document.createElement("link");
+    l.rel = "stylesheet"; l.dataset.packfonts = 1;
+    l.href = "https://fonts.googleapis.com/css2?" + fams.map(f => "family=" + f).join("&") + "&display=swap";
+    document.head.appendChild(l);
+  }
+  $("packs").innerHTML = Object.entries(BL_PACKS).map(([k, p]) => {
+    const t = BL_THEMES[p.theme], f = BL_FONTS[p.font];
+    return `<button class="pack ${packOn(p) ? "on" : ""}" data-k="${k}" style="--p1:${t.c1};--p2:${t.c2};--p3:${t.c3};--pb1:${t.bg1};--pb2:${t.bg2};--pf:${f.title.replace(/"/g, "'")}">
+      <b>${esc(p.label)}</b><small>${BL_STYLES[p.style][0]}, ${BL_ANIMS[p.anim].replace(/ \(.*\)/, "").toLowerCase()}, stinger ${BL_STINGERS[p.stinger][0].toLowerCase()}</small></button>`;
+  }).join("");
+  $("packs").querySelectorAll(".pack").forEach(b => b.onclick = () => {
+    const p = BL_PACKS[b.dataset.k];
+    Object.assign(da, { theme: p.theme, font: p.font, style: p.style, anim: p.anim, stinger: p.stinger });
+    renderDA(); renderStingers();
+    $("applyDA").click();
+  });
+}
+function renderBgPreview() {
+  const u = new URLSearchParams(themeQuery() + fontQuery());
+  u.set("anim", da.anim); u.set("vitesse", da.vitesse); u.set("densite", da.densite);
+  for (const k of ["traits", "bandes", "eclairs", "grain"]) u.set(k, da[k] ? 1 : 0);
+  const src = `${HUB}/fond-anime.html?${u}`;
+  if ($("bgPrev").dataset.src !== src) { $("bgPrev").dataset.src = src; $("bgPrev").src = src; }
+}
+// ---------- Stingers ----------
+const stingerName = style => {
+  const t = allThemes()[da.theme] || BL_THEMES.sunset;
+  const base = da.theme.startsWith("custom:") ? "custom_" + ["c1", "c2", "c3", "bg1", "bg2"].map(k => t[k].slice(1)).join("").toLowerCase().slice(0, 18) : da.theme;
+  return (style === "bandes" ? "" : style + "_") + base;
+};
+function renderStingers() {
+  $("stingers").innerHTML = Object.entries(BL_STINGERS).map(([k, [label, desc]]) =>
+    `<button class="stingercard ${k === da.stinger ? "on" : ""}" data-k="${k}">
+       <div class="vid"><span class="todo">Pas encore généré pour ce thème : clique pour le créer</span>
+         <video src="${HUB}/transitions/stinger_${stingerName(k)}_16x9.webm?v=${Date.now() % 1e6}" muted loop autoplay playsinline
+           onloadeddata="this.previousElementSibling.hidden = true; this.playbackRate = 0.7" onerror="this.hidden = true"></video></div>
+       <b>${label}</b><small>${desc}</small></button>`).join("");
+  $("stingers").querySelectorAll(".stingercard").forEach(c => c.onclick = async () => {
+    da.stinger = c.dataset.k; store("bl_da", da); renderStingers(); renderPacks();
+    await setStingerTheme(true);
+    renderStingers();
+  });
+}
+function renderDA() {
+  $("themes").innerHTML = Object.entries(allThemes()).map(([k, t]) =>
+    `<div class="theme ${k === da.theme ? "on" : ""}" data-k="${k}">
+       <div class="sw"><i style="background:${t.bg1}"></i><i style="background:${t.c3}"></i><i style="background:${t.c2}"></i><i style="background:${t.c1}"></i></div>
+       ${esc(t.label)}</div>`).join("");
+  $("themes").querySelectorAll(".theme").forEach(el => el.onclick = () => {
+    da.theme = el.dataset.k;
+    const t = allThemes()[da.theme];
+    $("cName").value = da.theme.startsWith("custom:") ? t.label : "";
+    for (const k of COLOR_KEYS) $("c" + k).value = t[k];
+    renderDA();
+  });
+  $("wstyle").value = da.style; $("aanim").value = da.aanim;
+  $("font").innerHTML = Object.entries(BL_FONTS).map(([k, f]) => `<option value="${k}" ${k === da.font ? "selected" : ""}>${esc(f.label)}</option>`).join("");
+  renderStyleCards();
+  $("anim").innerHTML = Object.entries(BL_ANIMS).map(([k, l]) => `<option value="${k}" ${k === da.anim ? "selected" : ""}>${esc(l)}</option>`).join("");
+  for (const k of ["vitesse", "densite"]) { $(k).value = da[k]; $(k + "V").textContent = da[k]; }
+  for (const k of ["traits", "bandes", "eclairs", "grain"]) $(k).checked = da[k];
+  for (const k of ["arrondi", "lueur"]) { $(k).value = da[k]; $(k + "V").textContent = da[k]; }
+  paintStudio(); renderPacks(); renderBgPreview();
+}
+$("anim").onchange = e => { da.anim = e.target.value; renderBgPreview(); renderPacks(); };
+$("wstyle").onchange = e => da.style = e.target.value;
+$("font").onchange = e => { da.font = e.target.value; renderStyleCards(); renderPacks(); };
+$("aanim").onchange = e => da.aanim = e.target.value;
+$("cSave").onclick = () => {
+  const label = $("cName").value.trim() || "Ma DA";
+  const id = label.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "perso";
+  customs[id] = { label, ...Object.fromEntries(COLOR_KEYS.map(k => [k, $("c" + k).value])) };
+  store("bl_custom", customs);
+  da.theme = `custom:${id}`;
+  renderDA(); toast(`DA « ${label} » enregistrée`);
+};
+$("cDel").onclick = () => {
+  if (!da.theme.startsWith("custom:")) return toast("Sélectionne une DA perso");
+  delete customs[da.theme.slice(7)]; store("bl_custom", customs); da.theme = "sunset"; renderDA();
+};
+for (const k of ["vitesse", "densite", "arrondi", "lueur"]) $(k).oninput = e => { da[k] = +e.target.value; $(k + "V").textContent = da[k]; };
+for (const k of ["vitesse", "densite"]) $(k).onchange = renderBgPreview;
+for (const k of ["traits", "bandes", "eclairs", "grain"]) $(k).onchange = e => { da[k] = e.target.checked; renderBgPreview(); };
+
+$("exportDA").onclick = () => {
+  const blob = new Blob([JSON.stringify({ format: "bl-studio-da", version: 1, da, customs }, null, 2)], { type: "application/json" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = `da-${(allThemes()[da.theme]?.label || da.theme).toLowerCase().replace(/[^a-z0-9]+/g, "-")}.json`;
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+$("importDA").onchange = async e => {
+  try {
+    const data = JSON.parse(await e.target.files[0].text());
+    if (data.format !== "bl-studio-da") throw new Error();
+    customs = { ...customs, ...(data.customs || {}) }; store("bl_custom", customs);
+    da = { ...da, ...(data.da || {}) }; renderDA();
+    toast("DA importée : clique sur « Appliquer » pour la mettre en place");
+  } catch { toast("Fichier de DA invalide"); }
+  e.target.value = "";
+};
+$("applyDA").onclick = async () => {
+  store("bl_da", da);
+  const t = allThemes()[da.theme] || BL_THEMES.sunset;
+  const custom = da.theme.startsWith("custom:");
+  toast("Application en cours…");
+  for (const i of inputs) {
+    const { inputSettings: s } = await call("GetInputSettings", { inputName: i.inputName });
+    if (i.inputKind === "browser_source" && s.url && OVERLAY_PAGES.includes(page(s.url))) {
+      const u = new URL(s.url);
+      u.searchParams.set("theme", custom ? "sunset" : da.theme);
+      for (const k of COLOR_KEYS) custom ? u.searchParams.set(k, t[k].slice(1)) : u.searchParams.delete(k);
+      if (page(s.url) !== "fond-anime.html" && u.searchParams.get("stylefixe") !== "1") u.searchParams.set("style", da.style);
+      if (page(s.url) === "alertes.html") u.searchParams.set("anim", da.aanim);
+      if (da.font && da.font !== "impact") u.searchParams.set("font", da.font); else u.searchParams.delete("font");
+      if (page(s.url) !== "fond-anime.html") {
+        if (da.arrondi !== 1) u.searchParams.set("arrondi", da.arrondi); else u.searchParams.delete("arrondi");
+        if (da.lueur > 0) u.searchParams.set("lueur", da.lueur); else u.searchParams.delete("lueur");
+      }
+      if (page(s.url) === "fond-anime.html") {
+        u.searchParams.set("anim", da.anim);
+        u.searchParams.set("vitesse", da.vitesse);
+        u.searchParams.set("densite", da.densite);
+        for (const k of ["traits", "bandes", "eclairs", "grain"]) u.searchParams.set(k, da[k] ? 1 : 0);
+      }
+      await call("SetInputSettings", { inputName: i.inputName, inputSettings: { url: u.toString() } });
+    } else if (i.inputKind.startsWith("text_gdiplus")) {
+      const sub = / - Sous-titre$/.test(i.inputName);
+      await call("SetInputSettings", { inputName: i.inputName, inputSettings: sub ? { color: abgr(t.sub) } : { color: abgr(t.c1), gradient_color: abgr(t.c2) } });
+    }
+  }
+  await setStingerTheme();
+  toast(`Thème « ${t.label} » appliqué`);
+};
+
+async function setStingerTheme(verbose) {
+  const { transitions } = await call("GetSceneTransitionList");
+  const stinger = transitions.find(tr => tr.transitionKind === "obs_stinger_transition");
+  if (!stinger) return;
+  const t = allThemes()[da.theme] || BL_THEMES.sunset;
+  const body = da.theme.startsWith("custom:") ? Object.fromEntries(["c1", "c2", "c3", "bg1", "bg2"].map(k => [k, t[k]])) : { theme: da.theme };
+  body.style = da.stinger || "bandes";
+  let name;
+  try {
+    const slow = setTimeout(() => toast(`Création du stinger « ${BL_STINGERS[body.style][0]} »… (20 s environ)`), 400);
+    const r = await hubPost("/api/stinger", body);
+    clearTimeout(slow);
+    if (!r.name) throw new Error(r.error);
+    name = r.name;
+  } catch (e) { toast(e?.message || "Stinger non généré : le BL Hub est-il lancé ?"); return; }
+  const { currentSceneTransitionName } = await call("GetCurrentSceneTransition");
+  await call("SetCurrentSceneTransition", { transitionName: stinger.transitionName });
+  const path = `${ROOT_DIR}transitions/stinger_${name}_${isVertical ? "9x16" : "16x9"}.webm`;
+  await call("SetCurrentSceneTransitionSettings", { transitionSettings: { path } });
+  if (currentSceneTransitionName !== stinger.transitionName) await call("SetCurrentSceneTransition", { transitionName: currentSceneTransitionName });
+  if (verbose) toast(`Stinger « ${BL_STINGERS[body.style][0]} » prêt`);
+}
+
+// ---------- Onglet Widgets ----------
+const OVERLAY_PAGES = ["widget.html", "fond-anime.html", "alertes.html", "chat-unifie.html", "minijeux.html", "soutiens.html"];
+const WIDGET_PAGES = ["widget.html", "alertes.html", "chat-unifie.html", "minijeux.html", "soutiens.html"];
+const DA_KEYS = ["arrondi", "lueur", "font", "stylefixe", "theme", "c1", "c2", "c3", "bg1", "bg2", "sub", "anim", "vitesse", "densite", "traits", "bandes", "eclairs", "grain", "style"];
+const HUB_PAGES = { "hub:alertes": ["alertes.html", 1000, 400, {}], "hub:chat": ["chat-unifie.html", 520, 700, { evenements: 1, max: 10, fade: 40 }],
+  "hub:minijeux": ["minijeux.html", 1920, 1080, {}], "hub:soutiens": ["soutiens.html", 620, 120, { every: 5 }] };
+const LABELS = { w: "Type", min: "Durée (min)", done: "Texte à la fin", bar: "Barre (1/0)", label: "Libellé", date: "Date (1/0)", title: "Titre",
+  sub: "Sous-titre", dot: "Point live (1/0)", logo: "Logo (1/0)", channel: "Pseudo Twitch", max: "Max", fade: "Disparition (s)", msgs: "Messages (séparés par |)",
+  tag: "Étiquette", speed: "Vitesse", items: "Réseaux (RÉSEAU:pseudo|…)", every: "Rotation (s)", nom: "Nom", metier: "Métier", info: "Info", titre: "Titre",
+  cur: "Actuel" };
+const DEFAULTS = {
+  chat: { channel: "", max: 8, fade: 30 }, ticker: { tag: "INFO", msgs: "Bienvenue sur le live|Rejoins le serveur|N'oublie pas le follow", speed: 1 },
+  socials: { items: "TWITCH:ton_pseudo|TIKTOK:@ton_pseudo|DISCORD:discord.gg/ton-serveur", every: 5 },
+  perso: { titre: "Personnage", nom: "Pablo Reed", metier: "Concessionnaire", info: "Los Santos" },
+  goal: { label: "Objectif followers", cur: 0, max: 100 }, camframe: { nom: "" }, music: { label: "En écoute" }, clock: { date: 1 },
+  badge: { title: "MA CHAÎNE", sub: "Live", dot: 1, logo: 1 }, countdown: { min: 5, done: "00:00", bar: 1 },
+};
+const SIZES = { chat: [520, 640], ticker: [1920, 70], socials: [620, 120], perso: [560, 150], goal: [600, 130], camframe: [520, 300],
+  music: [700, 130], clock: [300, 110], badge: [560, 140], countdown: [640, 200] };
+
+// aperçu servi par le Hub (même origine que l'appli) : file:///…/widget.html?x → /widget.html?x
+const previewUrl = u => "/" + page(u.toString()) + u.search;
+async function renderWidgets() {
+  const list = [];
+  for (const i of inputs.filter(i => i.inputKind === "browser_source")) {
+    const { inputSettings: s } = await call("GetInputSettings", { inputName: i.inputName });
+    if (WIDGET_PAGES.includes(page(s.url || ""))) list.push({ name: i.inputName, url: s.url, w: s.width || 600, h: s.height || 150 });
+  }
+  $("widgetList").innerHTML = list.map((w, n) => {
+    const u = new URL(w.url);
+    const fields = [...u.searchParams].filter(([k]) => !DA_KEYS.includes(k) && k !== "w");
+    const own = u.searchParams.get("stylefixe") === "1" ? u.searchParams.get("style") || "" : "";
+    const type = u.searchParams.get("w") || page(w.url).replace(".html", "");
+    return `<details class="card" data-n="${n}"><summary>${esc(w.name)} <span class="hint">(${esc(type)}${own ? " · " + STYLES[own][0] : ""})</span></summary>
+      <iframe class="preview" style="aspect-ratio:${w.w}/${w.h};max-height:260px;margin:6px 0" data-src="${esc(previewUrl(u))}"></iframe>
+      <div class="row wstyle-row"><label>Style</label><select class="wst">
+        <option value="">Par défaut (${esc(STYLES[da.style][0])})</option>
+        ${Object.entries(STYLES).map(([k, [l]]) => `<option value="${k}" ${k === own ? "selected" : ""}>${l}</option>`).join("")}
+      </select></div>
+      ${fields.map(([k, v]) => `<div class="row"><label title="${k}">${esc(LABELS[k] || k)}</label>
+        ${k === "msgs" || k === "items" ? `<textarea data-k="${k}">${esc(v)}</textarea>` : `<input type="text" data-k="${k}" value="${esc(v)}">`}</div>`).join("")}
+      <div class="row"><span></span><button class="btn primary small save">Enregistrer</button></div></details>`;
+  }).join("") || `<p class="hint">Aucun widget.</p>`;
+  $("widgetList").querySelectorAll("details").forEach(el => {
+    const frame = el.querySelector("iframe");
+    // l'aperçu ne se charge qu'à l'ouverture du widget
+    el.addEventListener("toggle", () => { if (el.open && !frame.src) frame.src = frame.dataset.src; });
+    const styled = () => {
+      const u = new URL(list[el.dataset.n].url), st = el.querySelector(".wst").value;
+      el.querySelectorAll("[data-k]").forEach(f => u.searchParams.set(f.dataset.k, f.value));
+      if (st) { u.searchParams.set("style", st); u.searchParams.set("stylefixe", "1"); }
+      else { u.searchParams.set("style", da.style); u.searchParams.delete("stylefixe"); }
+      return u;
+    };
+    el.querySelector(".wst").onchange = () => { frame.src = previewUrl(styled()); };
+    el.querySelector(".save").onclick = async () => {
+      const w = list[el.dataset.n], u = styled();
+      await call("SetInputSettings", { inputName: w.name, inputSettings: { url: u.toString() } });
+      w.url = u.toString();
+      toast("Widget mis à jour");
+    };
+  });
+}
+
+$("addWidget").onclick = async () => {
+  const type = $("newType").value;
+  const [file, width, height, defaults] = HUB_PAGES[type] || ["widget.html", ...SIZES[type], DEFAULTS[type]];
+  const u = new URL(`${FILE_BASE}${file}`);
+  if (!HUB_PAGES[type]) u.searchParams.set("w", type);
+  u.searchParams.set("theme", da.theme.startsWith("custom:") ? "sunset" : da.theme);
+  u.searchParams.set("style", da.style);
+  for (const [k, v] of Object.entries(defaults)) u.searchParams.set(k, v);
+  const label = $("newType").selectedOptions[0].textContent;
+  let name = `Widget ${label.replace(/^⚡ /, "").replace(/ \(BL Hub\)$/, "")}`, n = 2;
+  while (inputs.some(i => i.inputName === name)) name = `Widget ${label} ${n++}`;
+  await call("CreateInput", { sceneName: current, inputName: name, inputKind: "browser_source",
+    inputSettings: { url: u.toString(), width, height }, sceneItemEnabled: true });
+  toast(`« ${name} » ajouté à ${current}`);
+};
+
+// ---------- Onglet Textes ----------
+async function renderTexts() {
+  const list = inputs.filter(i => i.inputKind.startsWith("text_gdiplus"));
+  const rows = [];
+  for (const i of list) {
+    const { inputSettings: s } = await call("GetInputSettings", { inputName: i.inputName });
+    rows.push(`<div class="row"><label title="${esc(i.inputName)}">${esc(i.inputName)}</label><input type="text" data-n="${esc(i.inputName)}" value="${esc(s.text || "")}"></div>`);
+  }
+  $("textList").innerHTML = `<div class="card">${rows.join("") || `<p class="hint">Aucun texte.</p>`}</div>`;
+  $("textList").querySelectorAll("input").forEach(f => {
+    f.onchange = async () => { await call("SetInputSettings", { inputName: f.dataset.n, inputSettings: { text: f.value } }); toast("Texte mis à jour"); };
+  });
+}
+
+// ---------- Onglet Identité ----------
+const ID_FIELDS = { name: "idName", tagline: "idTagline", server: "idServer", character: "idCharacter", job: "idJob", city: "idCity" };
+const SOC_FIELDS = { twitch: "idTwitch", tiktok: "idTiktok", youtube: "idYoutube", discord: "idDiscord", instagram: "idInstagram", x: "idX" };
+let brand = null;
+const hubPost = (url, body) => fetch(HUB + url, { method: "POST", headers: { "Content-Type": "application/json", "X-BL": "1" }, body: JSON.stringify(body) }).then(r => r.json());
+async function loadIdentity() {
+  try { brand = (await (await fetch(HUB + "/api/state")).json()).config.brand; } catch { return; }
+  for (const [k, id] of Object.entries(ID_FIELDS)) $(id).value = brand[k] || "";
+  for (const [k, id] of Object.entries(SOC_FIELDS)) $(id).value = brand.socials?.[k] || "";
+  $("idLogo").src = HUB + "/logo.png?t=" + Date.now();
+  renderStyleCards();
+}
+const readIdentity = () => ({
+  ...Object.fromEntries(Object.entries(ID_FIELDS).map(([k, id]) => [k, $(id).value.trim()])),
+  socials: Object.fromEntries(Object.entries(SOC_FIELDS).map(([k, id]) => [k, $(id).value.trim()])),
+});
+$("idLogoFile").onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = async () => {
+    const r = await hubPost("/api/logo", { dataUrl: rd.result });
+    if (!r.ok) return toast(r.error || "Logo refusé");
+    $("idLogo").src = HUB + "/logo.png?t=" + Date.now();
+    await refreshSources(i => /logo|badge|alertes|fond|perso|camframe/i.test(i.url) || /Logo/i.test(i.name));
+    toast("Logo mis à jour partout");
+  };
+  rd.readAsDataURL(f);
+};
+// recharge les sources navigateur (et image) concernées pour qu'elles prennent le nouveau logo
+async function refreshSources(filter) {
+  for (const i of inputs) {
+    const { inputSettings: st } = await call("GetInputSettings", { inputName: i.inputName });
+    const info = { name: i.inputName, url: st.url || st.file || "" };
+    if (!filter(info)) continue;
+    if (i.inputKind === "browser_source") await call("PressInputPropertiesButton", { inputName: i.inputName, propertyName: "refreshnocache" }).catch(() => {});
+    if (i.inputKind === "image_source") await call("SetInputSettings", { inputName: i.inputName, inputSettings: { file: st.file } }).catch(() => {});
+  }
+}
+$("idSave").onclick = async () => { brand = readIdentity(); await hubPost("/api/config", { section: "brand", data: brand }); toast("Identité enregistrée"); };
+$("idApply").onclick = async () => {
+  const prev = brand || {}, next = readIdentity();
+  await hubPost("/api/config", { section: "brand", data: next });
+  toast("Application en cours…");
+  // anciens noms à remplacer (y compris les textes d'origine du pack)
+  const olds = [...new Set([prev.name, prev.server, "Brothers Life", "BROTHERS LIFE", "BrothersLife"].filter(Boolean))];
+  const swap = txt => olds.reduce((t, o) => t.split(o).join(o === o.toUpperCase() ? next.name.toUpperCase() : next.name), txt);
+  const soc = next.socials, items = [["TWITCH", soc.twitch], ["TIKTOK", soc.tiktok], ["YOUTUBE", soc.youtube], ["DISCORD", soc.discord], ["INSTAGRAM", soc.instagram], ["X", soc.x]]
+    .filter(([, v]) => v).map(([k, v]) => `${k}:${v}`).join("|");
+  for (const i of inputs) {
+    const { inputSettings: st } = await call("GetInputSettings", { inputName: i.inputName });
+    if (i.inputKind.startsWith("text_gdiplus") && st.text) {
+      const t = swap(st.text);
+      if (t !== st.text) await call("SetInputSettings", { inputName: i.inputName, inputSettings: { text: t } });
+    } else if (i.inputKind === "browser_source" && st.url && OVERLAY_PAGES.includes(page(st.url))) {
+      const u = new URL(st.url), w = u.searchParams.get("w");
+      if (w === "badge") { u.searchParams.set("title", next.name.toUpperCase()); if (next.tagline) u.searchParams.set("sub", next.tagline); }
+      if (w === "perso") { if (next.character) u.searchParams.set("nom", next.character); if (next.job) u.searchParams.set("metier", next.job); u.searchParams.set("info", next.city || ""); }
+      if (w === "socials" && items) u.searchParams.set("items", items);
+      if (w === "chat" && soc.twitch) u.searchParams.set("channel", soc.twitch);
+      if (w === "ticker" && u.searchParams.get("msgs")) u.searchParams.set("msgs", swap(u.searchParams.get("msgs")));
+      if (u.toString() !== st.url) await call("SetInputSettings", { inputName: i.inputName, inputSettings: { url: u.toString() } });
+    }
+  }
+  // bot : nom dans les réponses et messages automatiques, commande !reseaux reconstruite
+  try {
+    const bot = (await (await fetch(HUB + "/api/state")).json()).config.bot;
+    bot.commands = bot.commands.map(c => ({ ...c, response: c.cmd === "!reseaux" && items ? "Mes réseaux : " + items.split("|").map(x => x.replace(":", " ")).join(" · ") : swap(c.response) }));
+    bot.timers = bot.timers.map(t => ({ ...t, message: swap(t.message) }));
+    await hubPost("/api/config", { section: "bot", data: { commands: bot.commands, timers: bot.timers } });
+  } catch {}
+  brand = next;
+  renderTexts(); renderWidgets();
+  toast(`Identité « ${next.name} » appliquée partout`);
+};
+
+// ---------- Onglet Diffusion ----------
+const vendor = async (vendorName, requestType, requestData = {}) =>
+  (await call("CallVendorRequest", { vendorName, requestType, requestData })).responseData || {};
+const hms = ms => { const t = Math.floor(ms / 1000); return `${Math.floor(t / 3600)}:${String(Math.floor(t / 60) % 60).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`; };
+let dests = [];
+async function readDests() {
+  const list = [];
+  try {
+    const st = await call("GetStreamStatus"), svc = await call("GetStreamServiceSettings");
+    list.push({ id: "main", label: svc.streamServiceSettings?.service || "Flux principal", canvas: "16:9", live: st.outputActive,
+      info: st.outputActive ? `${hms(st.outputDuration)}${st.outputCongestion > 0.2 ? " · connexion instable" : ""}` : "Hors ligne" });
+  } catch {}
+  try {
+    const v = await vendor("aitum-vertical-canvas", "status");
+    if (v.success) list.push({ id: "vertical", label: "TikTok (vertical)", canvas: "9:16", live: !!v.streaming, info: v.streaming ? "En direct" : "Hors ligne" });
+  } catch {}
+  try {
+    const m = await vendor("aitum-multistream", "get_outputs");
+    for (const o of m.outputs || []) if (!o.vertical) list.push({ id: "ms:" + o.name, name: o.name, label: o.name, canvas: "16:9 · Multistream", live: null, info: "Démarrer / arrêter depuis ici ou le dock Multistream" });
+  } catch {}
+  return list;
+}
+async function startDest(d) {
+  if (d.id === "main") return call("StartStream");
+  if (d.id === "vertical") return vendor("aitum-vertical-canvas", "start_streaming");
+  return vendor("aitum-multistream", "start_output", { name: d.name });
+}
+async function stopDest(d) {
+  if (d.id === "main") return call("StopStream");
+  if (d.id === "vertical") return vendor("aitum-vertical-canvas", "stop_streaming");
+  return vendor("aitum-multistream", "stop_output", { name: d.name });
+}
+async function renderDests() {
+  if (!$("dests")) return;
+  dests = await readDests();
+  $("dests").innerHTML = dests.map((d, i) => `<div class="dest ${d.live ? "live" : ""}">
+      <div class="dh"><b>${esc(d.label)}</b>${d.live ? '<span class="onair">LIVE</span>' : ""}</div>
+      <span class="canvas">Format ${esc(d.canvas)}</span>
+      <span class="st">${esc(d.info)}</span>
+      <div class="row" style="margin:0">${d.live === true ? `<button class="btn small danger" data-stop="${i}">Arrêter</button>`
+        : d.live === false ? `<button class="btn small primary" data-start="${i}">Démarrer</button>`
+        : `<button class="btn small" data-start="${i}">Démarrer</button><button class="btn small" data-stop="${i}">Arrêter</button>`}</div>
+    </div>`).join("") || '<p class="hint">Aucune sortie trouvée : vérifie que les plugins Aitum Vertical et Multistream sont installés.</p>';
+  const on = dests.filter(d => d.live).length;
+  $("liveSum").innerHTML = on ? `<span class="onair">${on} plateforme${on > 1 ? "s" : ""} en direct</span>` : "Hors ligne";
+  $("dests").querySelectorAll("[data-start]").forEach(b => b.onclick = async () => { try { await startDest(dests[b.dataset.start]); } catch (e) { toast(e.message); } setTimeout(renderDests, 1500); });
+  $("dests").querySelectorAll("[data-stop]").forEach(b => b.onclick = async () => { try { await stopDest(dests[b.dataset.stop]); } catch (e) { toast(e.message); } setTimeout(renderDests, 1500); });
+}
+$("goLive").onclick = async () => {
+  if (!confirm("Lancer le live sur toutes les plateformes configurées ?")) return;
+  for (const d of dests) if (!d.live) { try { await startDest(d); } catch (e) { toast(`${d.label} : ${e.message}`); } }
+  toast("Lancement en cours…"); setTimeout(renderDests, 2500);
+};
+$("stopLive").onclick = async () => {
+  if (!confirm("Arrêter le live partout ?")) return;
+  for (const d of dests) if (d.live !== false) { try { await stopDest(d); } catch {} }
+  toast("Live arrêté"); setTimeout(renderDests, 2500);
+};
+try { $("ttServer").value = localStorage.getItem("bl_tt_server") || ""; } catch {}
+$("ttSave").onclick = async () => {
+  const server = $("ttServer").value.trim(), key = $("ttKey").value.trim();
+  if (!/^rtmps?:\/\//.test(server)) return toast("L'URL du serveur doit commencer par rtmp:// ou rtmps://");
+  try {
+    const a = await vendor("aitum-vertical-canvas", "update_stream_server", { stream_server: server, index: 0 });
+    if (a.success === false) throw new Error(a.error || "refusé");
+    if (key) {
+      const b = await vendor("aitum-vertical-canvas", "update_stream_key", { stream_key: key, index: 0 });
+      if (b.success === false) throw new Error(b.error || "refusé");
+    }
+    try { localStorage.setItem("bl_tt_server", server); } catch {}
+    $("ttKey").value = "";
+    $("ttInfo").textContent = key ? "Serveur et clé envoyés à OBS. Prêt pour le live TikTok." : "Serveur envoyé à OBS (clé inchangée).";
+    toast("TikTok configuré dans OBS");
+  } catch (e) { toast("OBS a refusé : " + e.message); }
+};
+setInterval(() => { if (document.body.classList.contains("obs-on") || $("app")?.hidden === false) renderDests().catch(() => {}); }, 4000);
+
+// ---------- Onglet Transitions ----------
+async function renderTransitions() {
+  const { transitions, currentSceneTransitionName } = await call("GetSceneTransitionList");
+  $("transList").innerHTML = transitions.map(t =>
+    `<button class="btn ${t.transitionName === currentSceneTransitionName ? "primary" : ""}" data-t="${esc(t.transitionName)}">${esc(t.transitionName)}</button>`).join("");
+  $("transList").querySelectorAll("button").forEach(b => b.onclick = async () => {
+    await call("SetCurrentSceneTransition", { transitionName: b.dataset.t }); renderTransitions();
+  });
+  const cur = await call("GetCurrentSceneTransition");
+  $("tdur").value = cur.transitionDuration || 500; $("tdurV").textContent = `${$("tdur").value} ms`;
+}
+$("tdur").oninput = e => $("tdurV").textContent = `${e.target.value} ms`;
+$("tdur").onchange = e => call("SetCurrentSceneTransitionDuration", { transitionDuration: +e.target.value });
+
+$("connect").onclick = connect;
+$("linkV").checked = linkV;
+$("linkV").onchange = e => { linkV = e.target.checked; store("bl_linkv", linkV); if (linkV) syncVertical(current); };
+try { $("pwd").value = localStorage.getItem("bl_pwd") || ""; $("port").value = localStorage.getItem("bl_port") || 4455; } catch {}
+(async () => {
+  try {
+    const a = await (await fetch("/api/obs/auth", { headers: { "X-BL": "1" } })).json();
+    if (!a.enabled) { setStatus("Serveur WebSocket d'OBS désactivé (Outils > Paramètres du serveur WebSocket)"); return; }
+    $("port").value = a.port; if (a.password) $("pwd").value = a.password;
+  } catch {}
+  connect();
+})();
+
+})();
+
+// ---------- Navigation commune ----------
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button, main > section").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); document.getElementById("tab-" + b.dataset.tab).classList.add("on");
+  try { localStorage.setItem("bl_tab", b.dataset.tab); } catch {}
+  if (b.dataset.tab === "chat") document.getElementById("chat").scrollTop = 1e9;
+});
+try { const t = localStorage.getItem("bl_tab"); if (t) document.querySelector(`nav button[data-tab="${t}"]`)?.click(); } catch {}
+
+</script>
+</body>
+</html>

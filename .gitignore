@@ -1,0 +1,15 @@
+# Données perso (jetons, points, stats) : jamais publiées
+hub/data/
+hub/node_modules/
+logo.png
+logo-original.png
+nowplaying.js
+branding/
+# Transitions générées : publiées dans le zip des releases (version sans marque)
+transitions/
+# Outils propres à la chaîne Brothers Life
+outils/gen_v4.py
+outils/gen_v5.py
+outils/branding.py
+*.bak
+__pycache__/

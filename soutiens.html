@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>BL Derniers soutiens</title>
+<!--
+  Fait défiler les derniers soutiens (follow, abonné, don, cadeau, Super Chat…). Nécessite le BL Hub.
+  URL : theme=…  style=carte|verre|neon|gta|minimal|plein  types=follow,sub,donation,gift,superchat,bits  every=5
+  Taille conseillée : 620 × 120.
+-->
+<script src="theme.js"></script>
+<script src="hub-client.js"></script>
+<link rel="stylesheet" href="styles.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: transparent; color: #fff; font-family: var(--font-body); }
+  .chip { width: 100%; height: 100%; display: flex; align-items: center; gap: 6vh; padding: 0 9vh; }
+  .chip small { display: block; font-size: 15vh; font-weight: 700; letter-spacing: .25em; text-transform: uppercase; color: var(--c2); }
+  .chip strong { display: block; font-size: 30vh; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .tag { flex: none; padding: 3vh 5vh; border-radius: 3vh; font-weight: 800; font-size: 16vh; color: #fff; }
+  .swap { animation: bl-in-up .5s ease-out; }
+  .txt { min-width: 0; }
+</style>
+</head>
+<body>
+<div class="chip" id="box"><div class="txt"><small>Derniers soutiens</small><strong>En attente…</strong></div></div>
+<script>
+  const q = new URLSearchParams(location.search);
+  blTheme(q); blStyle(q);
+  const TYPES = (q.get("types") || "follow,sub,giftsub,donation,gift,superchat,bits,member").split(",");
+  const LABEL = { follow: "Dernier follow", sub: "Dernier abonné", giftsub: "Abonnements offerts", donation: "Dernier don", gift: "Dernier cadeau",
+    superchat: "Dernier Super Chat", bits: "Derniers bits", member: "Dernier membre", raid: "Dernier raid", share: "Dernier partage" };
+  const latest = {};
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const keep = e => { if (TYPES.includes(e.type) && !latest[e.type]) latest[e.type] = e; };
+  let i = 0;
+
+  function show() {
+    const items = TYPES.map(t => latest[t]).filter(Boolean);
+    if (!items.length) return;
+    const e = items[i++ % items.length];
+    const p = BL_PLATFORMS[e.platform] || { short: "?", color: "#555" };
+    const extra = e.type === "donation" ? ` · ${e.amount} ${e.currency || "€"}` : e.type === "gift" ? ` · ${e.amount}× ${e.gift}` : e.type === "bits" ? ` · ${e.amount}` : "";
+    document.getElementById("box").innerHTML = `<span class="tag swap" style="background:${p.color}">${p.short}</span>
+      <div class="txt swap"><small>${LABEL[e.type]}</small><strong>${esc(e.user)}${esc(extra)}</strong></div>`;
+  }
+
+  blHub(m => {
+    if (m.kind === "hello") { (m.recent || []).forEach(keep); show(); }
+    if (m.kind === "event" && TYPES.includes(m.event.type)) { latest[m.event.type] = m.event; i = TYPES.indexOf(m.event.type); show(); }
+  });
+  setInterval(show, (+(q.get("every") || 5)) * 1000);
+</script>
+</body>
+</html>

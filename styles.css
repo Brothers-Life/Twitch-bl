@@ -1,0 +1,106 @@
+/* Styles visuels communs à tous les widgets et overlays.
+   Choix via l'URL : &style=carte|verre|neon|gta|minimal|plein  (défaut : carte)
+   --u est l'unité de taille du widget (1vh pour un bandeau, plus petite pour le chat…). */
+
+body { --u: 1vh; }
+
+.chip, .panel, .msg {
+  background: rgba(12, 8, 6, .88);
+  border-left: calc(var(--u) * 5) solid var(--c2);
+  border-radius: calc(var(--u) * 6 * var(--rad, 1));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.06);
+}
+
+/* Verre : translucide flouté, liseré clair */
+body.style-verre .chip, body.style-verre .panel, body.style-verre .msg {
+  background: linear-gradient(135deg, rgba(255,255,255,.16), rgba(255,255,255,.05));
+  backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,.25); border-left: 1px solid rgba(255,255,255,.25);
+  border-radius: calc(var(--u) * 10 * var(--rad, 1));
+  box-shadow: 0 calc(var(--u) * 4) calc(var(--u) * 12) rgba(0,0,0,.35);
+}
+
+/* Néon : contour lumineux */
+body.style-neon .chip, body.style-neon .panel, body.style-neon .msg {
+  background: rgba(5, 3, 8, .72);
+  border: calc(var(--u) * 1.2) solid var(--c2);
+  border-radius: calc(var(--u) * 8 * var(--rad, 1));
+  box-shadow: 0 0 calc(var(--u) * 6) var(--c2), inset 0 0 calc(var(--u) * 5) color-mix(in srgb, var(--c2) 45%, transparent);
+}
+body.style-neon .label, body.style-neon b, body.style-neon strong { text-shadow: 0 0 calc(var(--u) * 4) var(--c2); }
+
+/* GTA : bloc noir à angles droits, barre de couleur en haut, titres Impact */
+body.style-gta .chip, body.style-gta .panel, body.style-gta .msg {
+  background: rgba(0, 0, 0, .86);
+  border: 0; border-top: calc(var(--u) * 4) solid var(--c2);
+  border-radius: 0;
+  box-shadow: calc(var(--u) * 2) calc(var(--u) * 2) 0 rgba(0,0,0,.5);
+}
+body.style-gta .label, body.style-gta strong, body.style-gta b { font-family: Impact, "Bahnschrift", sans-serif; font-weight: 400; letter-spacing: .04em; }
+
+/* Minimal : pas de fond, texte détouré */
+body.style-minimal .chip, body.style-minimal .panel, body.style-minimal .msg {
+  background: none; border: 0; box-shadow: none;
+}
+body.style-minimal { text-shadow: 0 0 calc(var(--u) * 3) #000, 0 calc(var(--u) * .6) calc(var(--u) * 1.5) #000; }
+
+/* Plein : aplat de la couleur principale, texte sombre */
+body.style-plein .chip, body.style-plein .panel, body.style-plein .msg {
+  background: var(--c2); color: var(--bg2);
+  border: 0; border-radius: calc(var(--u) * 4 * var(--rad, 1));
+  box-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 8) rgba(0,0,0,.4);
+}
+body.style-plein .label { color: var(--bg2); opacity: .75; }
+body.style-plein b, body.style-plein strong, body.style-plein span { color: var(--bg2) !important; }
+
+/* animations d'entrée, communes */
+@keyframes bl-in-left { from { opacity: 0; transform: translateX(-8%); } }
+@keyframes bl-in-up { from { opacity: 0; transform: translateY(20%); } }
+@keyframes bl-pop { from { opacity: 0; transform: scale(.85); } }
+
+/* Pilule : très arrondi, ombre douce */
+body.style-pilule .chip, body.style-pilule .panel, body.style-pilule .msg {
+  background: rgba(14, 12, 12, .9);
+  border: 0; border-radius: 999px;
+  box-shadow: 0 calc(var(--u) * 3) calc(var(--u) * 10) rgba(0,0,0,.45), inset 0 0 0 calc(var(--u) * .6) color-mix(in srgb, var(--c2) 55%, transparent);
+}
+body.style-pilule .msg { border-radius: calc(var(--u) * 14 * var(--rad, 1)); }
+
+/* Contour : fond vide, bordure fine de la couleur principale */
+body.style-contour .chip, body.style-contour .panel, body.style-contour .msg {
+  background: rgba(0, 0, 0, .25);
+  border: calc(var(--u) * .7) solid var(--c2);
+  border-radius: calc(var(--u) * 3 * var(--rad, 1));
+  box-shadow: none;
+}
+body.style-contour { text-shadow: 0 calc(var(--u) * .5) calc(var(--u) * 2) rgba(0,0,0,.8); }
+
+/* Rétro : angles droits, ombre dure décalée, police pixel pour les titres */
+body.style-retro .chip, body.style-retro .panel, body.style-retro .msg {
+  background: var(--bg1);
+  border: calc(var(--u) * 1) solid var(--c1);
+  border-radius: 0;
+  box-shadow: calc(var(--u) * 3) calc(var(--u) * 3) 0 var(--c3);
+}
+body.style-retro .label { letter-spacing: .15em; }
+
+/* Holo : bordure dégradée animée */
+body.style-holo .chip, body.style-holo .panel, body.style-holo .msg {
+  border: calc(var(--u) * 1) solid transparent;
+  border-radius: calc(var(--u) * 6 * var(--rad, 1));
+  background:
+    linear-gradient(rgba(10, 8, 14, .92), rgba(10, 8, 14, .92)) padding-box,
+    linear-gradient(var(--holo-a, 120deg), var(--c1), var(--c2), var(--c3), var(--c1)) border-box;
+  background-size: 100% 100%, 300% 300%;
+  animation: bl-holo 6s linear infinite;
+  box-shadow: 0 0 calc(var(--u) * 5) color-mix(in srgb, var(--c2) 40%, transparent);
+}
+@keyframes bl-holo { to { background-position: 0 0, 300% 0; } }
+
+/* polices : les titres suivent la police choisie dans la DA */
+.badge b, .perso strong, .text, .gta .big, .title b, .result, .ticker .tag, .camframe .name { font-family: var(--font-title, Impact, sans-serif) !important; }
+
+/* lueur réglable (&lueur=0.5…2) : halo de la couleur principale autour des blocs */
+body.bl-glow .chip, body.bl-glow .panel, body.bl-glow .msg {
+  box-shadow: 0 0 calc(var(--u) * 8 * var(--glow)) color-mix(in srgb, var(--c2) calc(var(--glow) * 40%), transparent), inset 0 0 0 1px color-mix(in srgb, var(--c2) 40%, transparent);
+}

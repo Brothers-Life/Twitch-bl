@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BL Hub</title>
+<script src="/theme.js"></script>
+<style>
+  :root { --bg: #120f0d; --panel: #1c1714; --panel2: #241d19; --line: #342a24; --txt: #f1e9e2; --mute: #a3958a; --acc: #de9425;
+    --ok: #3ccf6e; --warn: #e8b730; --ko: #e5484d; --tw: #9146ff; --tt: #fe2c55; --yt: #ff3b3b; --se: #1ec98b; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--txt); font: 13px/1.45 "Segoe UI", system-ui, sans-serif; }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); padding: 8px 12px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  header img { width: 28px; height: 28px; border-radius: 50%; }
+  header b { font-size: 15px; }
+  .lights { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+  .light { display: flex; align-items: center; gap: 5px; font-size: 11px; padding: 3px 8px; border-radius: 99px; background: var(--panel); color: var(--mute); }
+  .light i { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+  .light.on i { background: var(--ok); box-shadow: 0 0 6px var(--ok); } .light.connecting i { background: var(--warn); } .light.error i { background: var(--ko); }
+  nav { display: flex; gap: 2px; padding: 0 8px; border-bottom: 1px solid var(--line); overflow-x: auto; position: sticky; top: 45px; background: var(--bg); z-index: 4; }
+  nav button { background: none; border: 0; padding: 9px 12px; border-bottom: 2px solid transparent; color: var(--mute); cursor: pointer; white-space: nowrap; }
+  nav button.on { color: var(--txt); border-color: var(--acc); }
+  main { padding: 12px; max-width: 1400px; margin: 0 auto; }
+  section { display: none; } section.on { display: block; }
+  h3 { margin: 16px 0 8px; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; color: var(--mute); }
+  h3:first-child { margin-top: 0; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .stat .k { font-size: 11px; color: var(--mute); text-transform: uppercase; letter-spacing: .08em; }
+  .stat .v { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .stat .s { font-size: 11px; color: var(--mute); }
+  .cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 5px 0; flex-wrap: wrap; }
+  .row > label { flex: 0 0 150px; color: var(--mute); }
+  .row > input[type=text], .row > input[type=password], .row > input[type=number], .row > select, .row > textarea { flex: 1; min-width: 120px; }
+  input[type=text], input[type=password], input[type=number], select, textarea { background: #0d0a09; border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; }
+  input[type=number] { width: 80px; }
+  textarea { resize: vertical; min-height: 60px; width: 100%; }
+  input[type=checkbox] { accent-color: var(--acc); width: 16px; height: 16px; }
+  .btn { background: var(--panel2); border: 1px solid var(--line); border-radius: 6px; padding: 6px 12px; cursor: pointer; }
+  .btn:hover { border-color: var(--acc); }
+  .btn.primary { background: var(--acc); border-color: var(--acc); color: #1a0f05; font-weight: 600; }
+  .btn.danger:hover { border-color: var(--ko); color: var(--ko); }
+  .btn.small { padding: 3px 8px; font-size: 12px; }
+  .tag { display: inline-block; font-size: 10px; font-weight: 800; padding: 1px 6px; border-radius: 4px; color: #fff; letter-spacing: .04em; }
+  .tw { background: var(--tw); } .tt { background: var(--tt); } .yt { background: var(--yt); } .se { background: var(--se); } .bot { background: var(--acc); color: #1a0f05; }
+  #chat { height: calc(100vh - 230px); min-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; padding: 8px; }
+  .cm { padding: 4px 6px; border-radius: 5px; word-wrap: break-word; }
+  .cm:hover { background: var(--panel2); }
+  .cm .n { font-weight: 700; margin: 0 4px; }
+  .cm.ev { background: rgba(222,148,37,.08); border-left: 3px solid var(--acc); }
+  .cm.mention { background: rgba(229,72,77,.12); }
+  .cm time { color: var(--mute); font-size: 11px; }
+  table { width: 100%; border-collapse: collapse; }
+  td, th { padding: 5px 6px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  th { color: var(--mute); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; }
+  td input[type=text] { width: 100%; }
+  .list li { padding: 4px 0; border-bottom: 1px solid var(--line); display: flex; gap: 6px; align-items: center; }
+  .list { list-style: none; margin: 0; padding: 0; }
+  .list .val { margin-left: auto; font-weight: 700; color: var(--acc); }
+  canvas { width: 100%; height: 200px; display: block; }
+  .hint { color: var(--mute); font-size: 12px; }
+  code { background: #0d0a09; padding: 2px 6px; border-radius: 4px; user-select: all; }
+  .toast { position: fixed; bottom: 14px; left: 50%; transform: translateX(-50%); background: var(--acc); color: #1a0f05; padding: 8px 14px; border-radius: 8px; font-weight: 600; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 10; }
+  .toast.on { opacity: 1; }
+  .games { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+  .legend { display: flex; gap: 12px; font-size: 11px; color: var(--mute); }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+</style>
+</head>
+<body>
+<header>
+  <img src="/logo.png" alt="">
+  <b>BL Hub</b>
+  <span class="hint" id="uptime"></span>
+  <button class="btn small primary" id="updBtn" hidden>Mise à jour disponible</button>
+  <div class="lights" id="lights"></div>
+</header>
+<nav>
+  <button data-tab="stats" class="on">📊 Tableau de bord</button>
+  <button data-tab="chat">💬 Chat unifié</button>
+  <button data-tab="alerts">🔔 Alertes</button>
+  <button data-tab="bot">🤖 Bot</button>
+  <button data-tab="games">🎮 Mini-jeux</button>
+  <button data-tab="board">🏆 Classement</button>
+  <button data-tab="conn">🔌 Connexions</button>
+</nav>
+<main>
+  <!-- ======== STATS ======== -->
+  <section id="tab-stats" class="on">
+    <div class="cards" id="statCards"></div>
+    <h3>Activité (messages par minute et spectateurs)</h3>
+    <div class="card">
+      <div class="legend"><span><i style="background:var(--tw)"></i>Twitch</span><span><i style="background:var(--tt)"></i>TikTok</span><span><i style="background:var(--yt)"></i>YouTube</span><span><i style="background:#fff"></i>Spectateurs</span></div>
+      <canvas id="chart" width="1200" height="220"></canvas>
+    </div>
+    <div class="cols" style="margin-top:10px">
+      <div class="card"><h3>Top bavards</h3><ul class="list" id="topChat"></ul></div>
+      <div class="card"><h3>Top soutiens (valeur estimée)</h3><ul class="list" id="topSup"></ul></div>
+      <div class="card"><h3>Derniers événements</h3><ul class="list" id="recent"></ul></div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn danger" id="resetStats">Remettre la session à zéro</button></div>
+  </section>
+
+  <!-- ======== CHAT ======== -->
+  <section id="tab-chat">
+    <div class="row">
+      <label style="flex:none"><input type="checkbox" class="cf" value="twitch" checked> Twitch</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="tiktok" checked> TikTok</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="youtube" checked> YouTube</label>
+      <label style="flex:none"><input type="checkbox" class="cf" value="bot" checked> Bot</label>
+      <label style="flex:none"><input type="checkbox" id="cfEvents" checked> Événements</label>
+      <span class="hint" style="margin-left:auto">Mot surligné : <input type="text" id="mention" placeholder="ton pseudo" style="width:120px"></span>
+    </div>
+    <div class="card" id="chat"></div>
+    <div class="row"><input type="text" id="say" placeholder="Écrire sur Twitch (nécessite la connexion Twitch)…" style="flex:1"><button class="btn primary" id="sayBtn">Envoyer</button></div>
+    <p class="hint">TikTok et YouTube sont en lecture seule : tu vois leurs messages ici, mais tu réponds depuis leur appli.</p>
+  </section>
+
+  <!-- ======== ALERTES ======== -->
+  <section id="tab-alerts">
+    <div class="card">
+      <div class="row"><label>Alertes activées</label><input type="checkbox" id="aOn"></div>
+      <div class="row"><label>Durée (s)</label><input type="number" id="aDur" min="2" max="30"></div>
+      <div class="row"><label>Son</label><input type="checkbox" id="aSound"> <span class="hint">Volume</span> <input type="range" id="aVol" min="0" max="1" step="0.05"></div>
+      <div class="row"><label>Lire les messages (voix)</label><input type="checkbox" id="aTts"> <span class="hint">si OBS le permet</span></div>
+    </div>
+    <h3>Par type d'alerte</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Type</th><th>Minimum</th><th>Texte ({user} {amount} {gift} {currency} {amountText} {message})</th><th></th></tr></thead><tbody id="aTypes"></tbody></table></div>
+    <div class="row"><button class="btn primary" id="saveAlerts">Enregistrer</button></div>
+  </section>
+
+  <!-- ======== BOT ======== -->
+  <section id="tab-bot">
+    <div class="cols">
+      <div class="card">
+        <div class="row"><label>Bot actif</label><input type="checkbox" id="bOn"></div>
+        <div class="row"><label>Nom du bot</label><input type="text" id="bName"></div>
+        <div class="row"><label>Nom des points</label><input type="text" id="bPts"></div>
+        <p class="hint">Le bot lit les 3 chats et répond sur Twitch (connexion Twitch requise). Commandes intégrées : !commandes !points !top !roulette</p>
+      </div>
+      <div class="card">
+        <h3>Points gagnés</h3>
+        <div class="row"><label>Message (1×/min)</label><input type="number" id="rChat"></div>
+        <div class="row"><label>Follow</label><input type="number" id="rFollow"></div>
+        <div class="row"><label>Partage</label><input type="number" id="rShare"></div>
+        <div class="row"><label>Abonnement / membre</label><input type="number" id="rSub"></div>
+        <div class="row"><label>Par bit</label><input type="number" id="rBit" step="0.1"></div>
+        <div class="row"><label>Par diamant TikTok</label><input type="number" id="rDiamond" step="0.1"></div>
+        <div class="row"><label>Par euro donné</label><input type="number" id="rEuro"></div>
+      </div>
+    </div>
+    <h3>Commandes ({user} {points} {uptime} {plateforme})</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Commande</th><th>Réponse</th><th>Délai (s)</th><th></th></tr></thead><tbody id="cmds"></tbody></table>
+      <div class="row"><button class="btn small" id="addCmd">+ Commande</button></div></div>
+    <h3>Messages automatiques (sur Twitch)</h3>
+    <div class="card"><table><thead><tr><th>Actif</th><th>Message</th><th>Toutes les (min)</th><th></th></tr></thead><tbody id="timers"></tbody></table>
+      <div class="row"><button class="btn small" id="addTimer">+ Message</button></div></div>
+    <div class="row"><button class="btn primary" id="saveBot">Enregistrer</button></div>
+  </section>
+
+  <!-- ======== MINI-JEUX ======== -->
+  <section id="tab-games">
+    <div class="row"><span class="hint">Jeu en cours :</span> <b id="gNow">aucun</b> <button class="btn danger small" id="gStop">Arrêter</button></div>
+    <div class="games">
+      <div class="card"><h3>🎯 Quiz</h3>
+        <div class="row"><button class="btn primary" data-game="quiz">Question au hasard</button></div>
+        <div class="row"><input type="text" id="qQ" placeholder="Ta question" style="flex:1"></div>
+        <div class="row"><input type="text" id="qA" placeholder="Réponses acceptées, séparées par |" style="flex:1"><button class="btn" id="qGo">Lancer</button></div></div>
+      <div class="card"><h3>🏁 Course</h3><p class="hint">Les spectateurs tapent !go, puis une course animée désigne le gagnant.</p>
+        <div class="row"><button class="btn primary" data-game="course">Lancer les inscriptions</button></div></div>
+      <div class="card"><h3>📊 Sondage</h3>
+        <div class="row"><input type="text" id="pQ" placeholder="Question" style="flex:1"></div>
+        <textarea id="pO" placeholder="Une option par ligne">Oui
+Non</textarea>
+        <div class="row"><label style="flex:none">Durée (s)</label><input type="number" id="pD" value="60"><button class="btn primary" id="pGo">Lancer</button></div></div>
+      <div class="card"><h3>🔢 Devine le nombre</h3>
+        <div class="row"><label style="flex:none">Entre 1 et</label><input type="number" id="dMax" value="100"><button class="btn primary" id="dGo">Lancer</button></div></div>
+      <div class="card"><h3>🎡 Roue des gages</h3>
+        <textarea id="wSeg"></textarea>
+        <div class="row"><label style="flex:none">Cadeau TikTok qui la lance</label><input type="text" id="wGift" placeholder="ex : Rose (vide = off)"></div>
+        <div class="row"><button class="btn primary" id="wGo">Faire tourner</button></div></div>
+      <div class="card"><h3>🎰 Roulette & réglages</h3>
+        <div class="row"><label>!roulette activée</label><input type="checkbox" id="gRoulette"></div>
+        <div class="row"><label>Gain quiz</label><input type="number" id="gRQuiz"></div>
+        <div class="row"><label>Gain course</label><input type="number" id="gRCourse"></div>
+        <div class="row"><label>Gain devine</label><input type="number" id="gRDevine"></div>
+        <div class="row"><label>Durée quiz (s)</label><input type="number" id="gDQuiz"></div>
+        <div class="row"><label>Inscriptions course (s)</label><input type="number" id="gDCourse"></div></div>
+    </div>
+    <h3>Questions du quiz (une par ligne : question | réponse | autre réponse)</h3>
+    <textarea id="quizList" style="min-height:180px"></textarea>
+    <div class="row"><button class="btn primary" id="saveGames">Enregistrer les réglages</button></div>
+  </section>
+
+  <!-- ======== CLASSEMENT ======== -->
+  <section id="tab-board">
+    <div class="card"><table><thead><tr><th>#</th><th>Plateforme</th><th>Spectateur</th><th>Points</th></tr></thead><tbody id="board"></tbody></table></div>
+    <div class="row"><button class="btn danger" id="resetPoints">Remettre tous les points à zéro</button></div>
+  </section>
+
+  <!-- ======== CONNEXIONS ======== -->
+  <section id="tab-conn">
+    <div class="cols">
+      <div class="card"><h3><span class="tag tw">TWITCH</span> Twitch</h3>
+        <div class="row"><label>Pseudo de la chaîne</label><input type="text" id="twChannel"></div>
+        <div class="row"><label>Client ID</label><input type="text" id="twClient" placeholder="dev.twitch.tv/console"></div>
+        <div class="row"><button class="btn" id="twSave">Enregistrer</button> <a class="btn primary" id="twLogin" href="/api/twitch/auth" target="_blank">Se connecter à Twitch</a> <button class="btn danger small" id="twLogout">Déconnecter</button></div>
+        <p class="hint" id="twInfo"></p>
+        <details><summary class="hint">Comment obtenir le Client ID ?</summary>
+          <ol class="hint"><li>Va sur <code>dev.twitch.tv/console</code> → <b>Enregistrer votre application</b>.</li>
+            <li>URL de redirection OAuth : <code id="twRedirect"></code></li>
+            <li>Catégorie : <b>Chat Bot</b>, type de client : <b>Public</b> → Créer.</li>
+            <li>Copie le <b>Client ID</b> ici, enregistre, puis clique « Se connecter à Twitch ».</li></ol></details></div>
+      <div class="card"><h3><span class="tag tt">TIKTOK</span> TikTok</h3>
+        <div class="row"><label>Pseudo TikTok</label><input type="text" id="ttUser" placeholder="@ton_pseudo"></div>
+        <div class="row"><button class="btn" id="ttSave">Enregistrer et connecter</button></div>
+        <p class="hint">Le Hub se connecte tout seul dès que tu lances un live (vérification chaque minute).</p></div>
+      <div class="card"><h3><span class="tag yt">YOUTUBE</span> YouTube</h3>
+        <div class="row"><label>Chaîne ou vidéo</label><input type="text" id="ytChan" placeholder="@ta_chaine ou lien du live"></div>
+        <div class="row"><button class="btn" id="ytSave">Enregistrer et connecter</button></div>
+        <p class="hint">Détecte automatiquement ton live en cours sur la chaîne.</p></div>
+      <div class="card"><h3><span class="tag se">DONS</span> StreamElements</h3>
+        <div class="row"><label>Jeton JWT</label><input type="password" id="seJwt" placeholder="laisser vide pour garder l'actuel"></div>
+        <div class="row"><button class="btn" id="seSave">Enregistrer</button></div>
+        <p class="hint">streamelements.com → Mon compte → Chaînes → « Show secrets » → JWT Token. Ta page de don StreamElements déclenche alors les alertes.</p></div>
+    </div>
+    <h3>Tester les alertes</h3>
+    <div class="row" id="tests"></div>
+    <h3>Overlays à ajouter dans OBS (source navigateur)</h3>
+    <div class="card hint" id="overlayList"></div>
+    <div class="card" id="updCard" style="margin-top:10px"><h3>Mises à jour de BL Studio</h3>
+      <div class="row"><label>Version installée</label><b id="updCur"></b></div>
+      <div class="row"><label>Dernière version</label><span id="updLatest">…</span></div>
+      <p class="hint" id="updState"></p>
+      <pre class="hint" id="updNotes" style="white-space:pre-wrap;margin:0 0 6px;font:inherit"></pre>
+      <div class="row"><button class="btn" id="updCheck">Vérifier maintenant</button><button class="btn primary" id="updInstall" hidden>Installer la mise à jour</button></div>
+      <label class="row" style="margin:0"><input type="checkbox" id="updAuto"> Installer automatiquement les mises à jour (jamais pendant un live)</label>
+      <p class="hint">Tes réglages, jetons, points et ton logo sont conservés à chaque mise à jour.</p>
+    </div>
+  </section>
+</main>
+<div class="toast" id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const TAG = { twitch: ["TW", "tw"], tiktok: ["TT", "tt"], youtube: ["YT", "yt"], streamelements: ["€", "se"], bot: ["BOT", "bot"] };
+const tag = p => `<span class="tag ${(TAG[p] || ["?", ""])[1]}">${(TAG[p] || [p])[0]}</span>`;
+const EVN = { follow: "follow", sub: "abonnement", giftsub: "abos offerts", bits: "bits", raid: "raid", gift: "cadeau", share: "partage", superchat: "Super Chat", member: "membre", donation: "don" };
+let S = null;
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("on"); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove("on"), 1800); }
+async function post(url, body) {
+  const r = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-BL": "1" }, body: JSON.stringify(body || {}) });
+  return r.json();
+}
+const saveSection = async (section, data, msg = "Enregistré") => { const r = await post("/api/config", { section, data }); if (r.state) { S = r.state; } toast(msg); };
+
+// ---------- Navigation ----------
+document.querySelectorAll("nav button").forEach(b => b.onclick = () => {
+  document.querySelectorAll("nav button, section").forEach(x => x.classList.remove("on"));
+  b.classList.add("on"); $("tab-" + b.dataset.tab).classList.add("on");
+  if (b.dataset.tab === "chat") $("chat").scrollTop = 1e9;
+});
+
+// ---------- Statuts ----------
+function renderLights(st) {
+  const L = [["Twitch chat", st.twitch.chat], ["Twitch alertes", st.twitch.events], ["TikTok", st.tiktok.live], ["YouTube", st.youtube.live], ["Dons", st.streamelements.state]];
+  $("lights").innerHTML = L.map(([n, s]) => `<span class="light ${s}"><i></i>${n}</span>`).join("");
+  $("twInfo").textContent = st.twitch.detail || "";
+}
+
+// ---------- Stats ----------
+const fmt = n => (n ?? 0).toLocaleString("fr-FR");
+function renderStats(st) {
+  const sum = o => (o.twitch || 0) + (o.tiktok || 0) + (o.youtube || 0);
+  const per = o => `TW ${fmt(o.twitch)} · TT ${fmt(o.tiktok)} · YT ${fmt(o.youtube)}`;
+  const ev = st.events;
+  const cards = [
+    ["Spectateurs", sum(st.viewers), per(st.viewers)], ["Pic de spectateurs", sum(st.peak), per(st.peak)],
+    ["Messages", sum(st.messages), per(st.messages)], ["Chatteurs uniques", sum(st.chatters), per(st.chatters)],
+    ["Follows", ev.follow, "Twitch + TikTok"], ["Abonnements / membres", ev.sub + ev.member + ev.giftsub, `${ev.giftsub} offerts`],
+    ["Dons", `${fmt(st.donations)} €`, `${ev.donation} don(s)`], ["Super Chats", `${fmt(st.superchats)} €`, `${ev.superchat} Super Chat(s)`],
+    ["Bits", st.bits, `${ev.bits} cheer(s)`], ["Diamants TikTok", st.diamonds, `${ev.gift} cadeau(x)`],
+    ["Likes TikTok", st.likes, `${ev.share} partage(s)`], ["Raids", ev.raid, `Total follows : ${fmt(st.allTime.follow || 0)}`],
+  ];
+  $("statCards").innerHTML = cards.map(([k, v, s]) => `<div class="card stat"><div class="k">${k}</div><div class="v">${typeof v === "number" ? fmt(v) : v}</div><div class="s">${s}</div></div>`).join("");
+  $("topChat").innerHTML = st.topChatters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  $("topSup").innerHTML = st.topSupporters.map(t => `<li>${tag(t.platform)} ${esc(t.user)}<span class="val">${t.value} €</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  $("recent").innerHTML = st.recent.map(r => `<li>${tag(r.platform)} ${esc(r.user)} <span class="hint">${EVN[r.type] || r.type}${r.gift ? ` · ${esc(r.gift)}` : ""}${r.amount ? ` · ${r.amount}` : ""}</span><span class="val">${new Date(r.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}</span></li>`).join("") || `<li class="hint">Rien pour l'instant</li>`;
+  drawChart(st);
+}
+
+function drawChart(st) {
+  const c = $("chart"), ctx = c.getContext("2d"), W = c.width, H = c.height;
+  const pts = [...st.timeline, { ...st.current, viewers: (st.viewers.twitch || 0) + (st.viewers.tiktok || 0) + (st.viewers.youtube || 0) }].slice(-60);
+  ctx.clearRect(0, 0, W, H);
+  const maxMsg = Math.max(5, ...pts.map(p => (p.twitch || 0) + (p.tiktok || 0) + (p.youtube || 0)));
+  const maxV = Math.max(5, ...pts.map(p => p.viewers || 0));
+  const bw = W / 60;
+  ctx.strokeStyle = "#2a221d"; ctx.lineWidth = 1;
+  for (let i = 1; i < 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke(); }
+  pts.forEach((p, i) => {
+    let y = H;
+    for (const [k, col] of [["twitch", "#9146ff"], ["tiktok", "#fe2c55"], ["youtube", "#ff3b3b"]]) {
+      const h = (p[k] || 0) / maxMsg * (H - 20);
+      ctx.fillStyle = col; ctx.fillRect(i * bw + 2, y - h, bw - 4, h); y -= h;
+    }
+  });
+  ctx.strokeStyle = "#fff"; ctx.lineWidth = 2; ctx.beginPath();
+  pts.forEach((p, i) => { const x = i * bw + bw / 2, y = H - (p.viewers || 0) / maxV * (H - 20); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+  ctx.stroke();
+  ctx.fillStyle = "#a3958a"; ctx.font = "11px Segoe UI"; ctx.fillText(`max ${maxMsg} msg/min · ${maxV} spectateurs`, 6, 14);
+}
+
+setInterval(() => {
+  if (!S) return;
+  const m = Math.floor((Date.now() - S.stats.startedAt) / 60000);
+  $("uptime").textContent = `Session : ${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")}`;
+}, 1000);
+$("resetStats").onclick = async () => { if (confirm("Remettre les stats de la session à zéro ?")) { await post("/api/stats/reset"); load(); } };
+
+// ---------- Chat ----------
+const chatFilters = () => [...document.querySelectorAll(".cf")].filter(c => c.checked).map(c => c.value);
+function addChat(e) {
+  const isEv = e.type !== "chat";
+  if (isEv && !EVN[e.type]) return;
+  const box = $("chat"), atBottom = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  const div = document.createElement("div");
+  const mention = $("mention").value.trim().toLowerCase();
+  div.className = `cm${isEv ? " ev" : ""}${!isEv && mention && e.message?.toLowerCase().includes(mention) ? " mention" : ""}`;
+  div.dataset.p = e.platform; div.dataset.ev = isEv ? 1 : 0;
+  const time = new Date(e.ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  div.innerHTML = `<time>${time}</time> ${tag(e.platform)}<span class="n" style="color:${e.color || "#f1e9e2"}">${esc(e.user)}</span>${isEv
+    ? `<b>${EVN[e.type]}</b> ${e.gift ? `${e.amount}× ${esc(e.gift)}` : e.amount ? esc(e.amountText || e.amount) : ""} ${e.message ? `— ${esc(e.message)}` : ""}`
+    : esc(e.message)}${e.platform === "bot" && e.replyTo && !e.sent ? ` <span class="hint">(non envoyé : ${e.replyTo === "twitch" ? "connexion Twitch requise" : "lecture seule"})</span>` : ""}`;
+  applyFilter(div);
+  box.appendChild(div);
+  while (box.children.length > 400) box.firstChild.remove();
+  if (atBottom) box.scrollTop = box.scrollHeight;
+}
+function applyFilter(div) {
+  const f = chatFilters();
+  div.hidden = !f.includes(div.dataset.p) && !(div.dataset.p === "streamelements") || (div.dataset.ev === "1" && !$("cfEvents").checked);
+}
+document.querySelectorAll(".cf, #cfEvents").forEach(c => c.onchange = () => $("chat").querySelectorAll(".cm").forEach(applyFilter));
+const sendSay = async () => { const t = $("say").value.trim(); if (!t) return; $("say").value = ""; const r = await post("/api/say", { text: t }); if (!r.sent) toast("Non envoyé : connecte-toi à Twitch (onglet Connexions)"); };
+$("sayBtn").onclick = sendSay; $("say").onkeydown = e => { if (e.key === "Enter") sendSay(); };
+
+// ---------- Alertes ----------
+const ALABEL = { follow: "Follow (Twitch/TikTok)", sub: "Abonnement Twitch", giftsub: "Abos offerts", bits: "Bits Twitch", raid: "Raid Twitch",
+  gift: "Cadeau TikTok (min. diamants)", share: "Partage TikTok", superchat: "Super Chat YouTube", member: "Membre YouTube", donation: "Don (min. €)" };
+function renderAlerts(a) {
+  $("aOn").checked = a.enabled; $("aDur").value = a.duration; $("aSound").checked = a.sound; $("aVol").value = a.volume; $("aTts").checked = a.tts;
+  $("aTypes").innerHTML = Object.entries(a.types).map(([k, t]) => `<tr data-k="${k}"><td><input type="checkbox" class="on" ${t.on ? "checked" : ""}></td>
+    <td>${ALABEL[k] || k}</td><td><input type="number" class="min" value="${t.min}"></td><td><input type="text" class="text" value="${esc(t.text)}"></td>
+    <td><button class="btn small test">Tester</button></td></tr>`).join("");
+  $("aTypes").querySelectorAll(".test").forEach(b => b.onclick = () => post("/api/test", { type: b.closest("tr").dataset.k }));
+}
+$("saveAlerts").onclick = () => {
+  const types = {};
+  $("aTypes").querySelectorAll("tr").forEach(tr => types[tr.dataset.k] = { on: tr.querySelector(".on").checked, min: +tr.querySelector(".min").value, text: tr.querySelector(".text").value });
+  saveSection("alerts", { enabled: $("aOn").checked, duration: +$("aDur").value, sound: $("aSound").checked, volume: +$("aVol").value, tts: $("aTts").checked, types }, "Alertes enregistrées");
+};
+
+// ---------- Bot ----------
+function rowCmd(c = { enabled: true, cmd: "!", response: "", cooldown: 10 }) {
+  return `<tr><td><input type="checkbox" class="on" ${c.enabled ? "checked" : ""}></td><td><input type="text" class="cmd" value="${esc(c.cmd)}"></td>
+    <td><input type="text" class="resp" value="${esc(c.response)}"></td><td><input type="number" class="cd" value="${c.cooldown}"></td><td><button class="btn small danger del">✕</button></td></tr>`;
+}
+function rowTimer(t = { enabled: true, message: "", minutes: 15 }) {
+  return `<tr><td><input type="checkbox" class="on" ${t.enabled ? "checked" : ""}></td><td><input type="text" class="msg" value="${esc(t.message)}"></td>
+    <td><input type="number" class="min" value="${t.minutes}"></td><td><button class="btn small danger del">✕</button></td></tr>`;
+}
+const bindDel = el => el.querySelectorAll(".del").forEach(b => b.onclick = () => b.closest("tr").remove());
+function renderBot(b) {
+  $("bOn").checked = b.enabled; $("bName").value = b.name; $("bPts").value = b.pointsName;
+  const r = b.rewards;
+  $("rChat").value = r.chat; $("rFollow").value = r.follow; $("rShare").value = r.share; $("rSub").value = r.sub; $("rBit").value = r.perBit; $("rDiamond").value = r.perDiamond; $("rEuro").value = r.perEuro;
+  $("cmds").innerHTML = b.commands.map(rowCmd).join(""); bindDel($("cmds"));
+  $("timers").innerHTML = b.timers.map(rowTimer).join(""); bindDel($("timers"));
+}
+$("addCmd").onclick = () => { $("cmds").insertAdjacentHTML("beforeend", rowCmd()); bindDel($("cmds")); };
+$("addTimer").onclick = () => { $("timers").insertAdjacentHTML("beforeend", rowTimer()); bindDel($("timers")); };
+$("saveBot").onclick = () => saveSection("bot", {
+  enabled: $("bOn").checked, name: $("bName").value, pointsName: $("bPts").value,
+  rewards: { chat: +$("rChat").value, follow: +$("rFollow").value, share: +$("rShare").value, sub: +$("rSub").value, perBit: +$("rBit").value, perDiamond: +$("rDiamond").value, perEuro: +$("rEuro").value },
+  commands: [...$("cmds").querySelectorAll("tr")].map(tr => ({ enabled: tr.querySelector(".on").checked, cmd: tr.querySelector(".cmd").value.trim(), response: tr.querySelector(".resp").value, cooldown: +tr.querySelector(".cd").value })).filter(c => c.cmd.length > 1),
+  timers: [...$("timers").querySelectorAll("tr")].map(tr => ({ enabled: tr.querySelector(".on").checked, message: tr.querySelector(".msg").value, minutes: Math.max(1, +tr.querySelector(".min").value) })).filter(t => t.message),
+}, "Bot enregistré");
+
+// ---------- Mini-jeux ----------
+const GNAME = { quiz: "Quiz", course: "Course", sondage: "Sondage", devine: "Devine le nombre", roue: "Roue des gages" };
+function renderGame(g) { $("gNow").textContent = g ? `${GNAME[g.type] || g.type} (${g.phase})` : "aucun"; }
+function renderGames(g) {
+  $("gRoulette").checked = g.roulette; $("wGift").value = g.wheelGift || ""; $("wSeg").value = g.wheel.join("\n");
+  $("gRQuiz").value = g.rewards.quiz; $("gRCourse").value = g.rewards.course; $("gRDevine").value = g.rewards.devine;
+  $("gDQuiz").value = g.durations.quiz; $("gDCourse").value = g.durations.course;
+  $("quizList").value = g.quiz.map(x => `${x.q} | ${x.a.split("|").join(" | ")}`).join("\n");
+}
+const game = (action, options) => post("/api/game", { action, options });
+document.querySelectorAll("[data-game]").forEach(b => b.onclick = () => game(b.dataset.game));
+$("qGo").onclick = () => { if ($("qQ").value && $("qA").value) game("quiz", { question: $("qQ").value, answers: $("qA").value }); };
+$("pGo").onclick = () => game("sondage", { question: $("pQ").value || "Sondage", options: $("pO").value.split("\n").map(s => s.trim()).filter(Boolean), duration: +$("pD").value });
+$("dGo").onclick = () => game("devine", { max: +$("dMax").value || 100 });
+$("wGo").onclick = () => game("roue", { segments: $("wSeg").value.split("\n").map(s => s.trim()).filter(Boolean) });
+$("gStop").onclick = () => game("stop");
+$("saveGames").onclick = () => saveSection("games", {
+  roulette: $("gRoulette").checked, wheelGift: $("wGift").value.trim(), wheel: $("wSeg").value.split("\n").map(s => s.trim()).filter(Boolean),
+  rewards: { quiz: +$("gRQuiz").value, course: +$("gRCourse").value, devine: +$("gRDevine").value },
+  durations: { ...S.config.games.durations, quiz: +$("gDQuiz").value, course: +$("gDCourse").value },
+  quiz: $("quizList").value.split("\n").map(l => l.split("|").map(s => s.trim())).filter(p => p.length >= 2 && p[0]).map(([q, ...a]) => ({ q, a: a.join("|").toLowerCase() })),
+}, "Mini-jeux enregistrés");
+
+// ---------- Classement ----------
+function renderBoard(list) {
+  $("board").innerHTML = list.map((p, i) => `<tr><td>${i + 1}</td><td>${tag(p.platform)}</td><td>${esc(p.user)}</td><td><b>${fmt(p.points)}</b></td></tr>`).join("") || `<tr><td colspan="4" class="hint">Aucun point pour l'instant</td></tr>`;
+}
+$("resetPoints").onclick = async () => { if (confirm("Remettre les points de tout le monde à zéro ?")) { const r = await post("/api/points", { action: "reset" }); renderBoard(r.leaderboard); } };
+
+// ---------- Connexions ----------
+function renderConn(c) {
+  $("twChannel").value = c.twitch.channel; $("twClient").value = c.twitch.clientId; $("twRedirect").textContent = c.twitch.redirect;
+  $("twLogin").textContent = c.twitch.hasToken ? `Reconnecter (${c.twitch.login || "connecté"})` : "Se connecter à Twitch";
+  $("ttUser").value = c.tiktok.username; $("ytChan").value = c.youtube.channel;
+  $("seJwt").placeholder = c.streamelements.hasJwt ? "jeton enregistré (laisser vide pour le garder)" : "colle ton JWT ici";
+}
+$("twSave").onclick = () => saveSection("twitch", { channel: $("twChannel").value.trim(), clientId: $("twClient").value.trim() }, "Twitch enregistré");
+$("twLogin").onclick = e => { if (!$("twClient").value.trim()) { e.preventDefault(); toast("Renseigne d'abord le Client ID"); } };
+$("twLogout").onclick = async () => { await post("/api/twitch/logout"); toast("Déconnecté de Twitch"); load(); };
+$("ttSave").onclick = () => saveSection("tiktok", { username: $("ttUser").value.trim() }, "TikTok : connexion…");
+$("ytSave").onclick = () => saveSection("youtube", { channel: $("ytChan").value.trim() }, "YouTube : connexion…");
+$("seSave").onclick = () => { saveSection("streamelements", { jwt: $("seJwt").value.trim() }, "StreamElements enregistré"); $("seJwt").value = ""; };
+$("tests").innerHTML = Object.keys(ALABEL).map(k => `<button class="btn small" data-t="${k}">${ALABEL[k].split(" (")[0]}</button>`).join("") + `<button class="btn small" data-t="chat">Message TikTok</button>`;
+$("tests").querySelectorAll("button").forEach(b => b.onclick = () => post("/api/test", { type: b.dataset.t }));
+// dossier d'installation fourni par le Hub (aucun chemin en dur)
+fetch("/api/paths").then(r => r.json()).then(({ fileBase }) => {
+$("overlayList").innerHTML = [
+  ["Alertes", "alertes.html?theme=sunset&style=carte&anim=glisse", "1000 × 400"],
+  ["Chat unifié", "chat-unifie.html?theme=sunset&style=carte&evenements=1", "520 × 700"],
+  ["Mini-jeux", "minijeux.html?theme=sunset&style=carte", "1920 × 1080"],
+  ["Derniers soutiens", "soutiens.html?theme=sunset&style=carte", "620 × 120"],
+].map(([n, u, s]) => `<div class="row"><b style="flex:0 0 130px">${n}</b><code>${fileBase}${u}</code><span>${s}</span></div>`).join("") +
+  `<p>Déjà présents dans tes scènes OBS (dossier « Hub »). Options : style=${Object.keys(BL_STYLES).join("|")}, font=${Object.keys(BL_FONTS).join("|")}, anim=glisse|pop|gta|bandeau.</p>`;
+}).catch(() => {});
+
+// ---------- Mises à jour ----------
+let reloadPlanned = false;
+function renderUpdate(u) {
+  if (!u) return;
+  $("updCur").textContent = u.current || "?";
+  $("updLatest").textContent = u.latest || "…";
+  $("updAuto").checked = S?.config?.updates?.auto !== false;
+  $("updState").textContent = u.installing ? (u.restarting ? "Mise à jour installée : redémarrage…" : "Téléchargement et installation…")
+    : u.available ? `La version ${u.latest} est disponible.` : u.error || (u.checkedAt ? "BL Studio est à jour." : "Vérification au démarrage…");
+  $("updInstall").hidden = !u.available || u.installing;
+  $("updNotes").textContent = u.available ? u.notes : "";
+  $("updBtn").hidden = !u.available;
+  if (u.restarting && !reloadPlanned) { reloadPlanned = true; toast("Mise à jour installée"); setTimeout(() => location.reload(), 7000); }
+}
+$("updCheck").onclick = async () => { $("updState").textContent = "Vérification…"; renderUpdate(await post("/api/update/check")); };
+$("updInstall").onclick = async () => { await post("/api/update/install"); toast("Installation de la mise à jour…"); };
+$("updAuto").onchange = e => saveSection("updates", { auto: e.target.checked }, e.target.checked ? "Mises à jour automatiques activées" : "Mises à jour automatiques désactivées");
+$("updBtn").onclick = () => document.querySelector('[data-tab="conn"]').click();
+
+// ---------- Chargement + temps réel ----------
+async function load() {
+  S = await (await fetch("/api/state")).json();
+  renderLights(S.status); renderStats(S.stats); renderAlerts(S.config.alerts); renderBot(S.config.bot);
+  renderGames(S.config.games); renderGame(S.game); renderBoard(S.leaderboard); renderConn(S.config);
+  $("chat").innerHTML = ""; S.chat.forEach(addChat);
+  renderUpdate(S.update);
+}
+function live() {
+  const ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data);
+    if (m.kind === "status") renderLights(m.status);
+    if (m.kind === "event") { addChat(m.event); if (m.event.type !== "chat") refreshStats(); }
+    if (m.kind === "stats") { S.stats = m.stats; renderStats(m.stats); }
+    if (m.kind === "game") renderGame(m.state);
+    if (m.kind === "update") renderUpdate(m.update);
+  };
+  ws.onclose = () => setTimeout(live, 3000);
+}
+let statTimer = null;
+function refreshStats() { clearTimeout(statTimer); statTimer = setTimeout(async () => { const s = await (await fetch("/api/state")).json(); S.stats = s.stats; renderStats(s.stats); renderBoard(s.leaderboard); }, 800); }
+setInterval(refreshStats, 15000);
+load(); live();
+</script>
+</body>
+</html>

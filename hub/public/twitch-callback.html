@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Connexion Twitch</title>
+<style>
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #15110f; color: #f1e9e2; font: 16px "Segoe UI", sans-serif; }
+  .box { text-align: center; padding: 30px; }
+  b { color: #de9425; }
+</style>
+</head>
+<body>
+<div class="box" id="box">Connexion à Twitch…</div>
+<script>
+  // Twitch renvoie le jeton dans l'ancre de l'URL (#access_token=…) : on le transmet au Hub local
+  const p = new URLSearchParams(location.hash.slice(1));
+  const box = document.getElementById("box");
+  if (!p.get("access_token")) {
+    box.textContent = "Connexion annulée ou refusée : " + (new URLSearchParams(location.search).get("error_description") || "aucun jeton reçu");
+  } else {
+    fetch("/api/twitch/token", { method: "POST", headers: { "Content-Type": "application/json", "X-BL": "1" }, body: JSON.stringify({ token: p.get("access_token") }) })
+      .then(r => r.json())
+      .then(r => { box.innerHTML = r.login ? `Connecté en tant que <b>${r.login}</b>. Tu peux fermer cette page.` : "Jeton refusé, réessaie."; history.replaceState(null, "", "/twitch/callback"); });
+  }
+</script>
+</body>
+</html>
